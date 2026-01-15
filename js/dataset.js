@@ -55,7 +55,7 @@ export const COUNTRY_BUTTONS = {
 
 function link(t, u) { return { title: t, url: u }; }
 
-// [중요] 경로 설정 함수
+// 경로 설정 함수
 function img(filename) { 
   return { 
     commonsUrl: `./assets/images/${filename}`, 
@@ -170,7 +170,8 @@ export const REF_DATA = {
       topic: "북극해 항로와 자원", 
       sources: [link("북극해 협력", "https://ctis.re.kr/board.es?mid=a10101010200&bid=0001&tag=&act=view&list_no=639")], 
       news: [link("에너지 패권 경쟁", "https://plus.hankyung.com/apps/newsinside.view?date=20250611&face=A001&orgId=YJA0000003146510")], 
-      images: [img("3_norway.jpg")] 
+      // [수정] 노르웨이는 png
+      images: [img("3_norway.png")] 
     },
     "러시아": { 
       topic: "북극 자원과 북동항로", 
@@ -194,7 +195,8 @@ export const REF_DATA = {
       topic: "원자력 발전 정책", 
       sources: [link("원전 비중 70%", "https://www.hani.co.kr/arti/economy/economy_general/1094604.html")], 
       news: [link("원전과 재생에너지", "https://www.hankookilbo.com/News/Read/A2024052716260000163")], 
-      images: [img("3_france.jpg")] 
+      // [수정] 프랑스는 png
+      images: [img("3_france.png")] 
     },
     "일본": { 
       topic: "에너지 수입 의존", 
