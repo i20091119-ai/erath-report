@@ -38,35 +38,34 @@ h3 { font-size:15px; color:#fff; margin:15px 0 8px; }
 .form-grid-4 { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; }
 input, textarea { width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid var(--line); color:#fff; border-radius:8px; box-sizing:border-box; }
 
-.imgcard { border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#000; }
+.imgcard { 
+  border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#000; 
+  /* 카드 크기를 적당히 고정하여 정렬 도움 */
+  width: 100%; max-width: 400px;
+}
 .imgcap { padding:8px; font-size:12px; color:var(--muted); }
-.images { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
-/* 보고서 스타일 (Report Style) */
+/* [수정] 이미지 정렬: Flexbox로 중앙 정렬 */
+.images { 
+  display: flex; 
+  flex-wrap: wrap; 
+  justify-content: center; /* 가로 중앙 정렬 */
+  gap: 15px; 
+}
+
+/* 보고서 스타일 */
 .report { 
   background:var(--panel); border:2px solid #38bdf8; padding:25px; border-radius:16px; 
   position:relative; overflow:hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
-/* 6. 헤더 디자인 (귀엽고 아기자기하게) */
 .report-header {
-  text-align: center;
-  font-size: 20px;
-  font-weight: 900;
-  color: #fff;
+  text-align: center; font-size: 20px; font-weight: 900; color: #fff;
   background: linear-gradient(90deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 5px;
-  letter-spacing: 2px;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 5px; letter-spacing: 2px;
 }
-.report-title {
-  text-align: center;
-  font-size: 16px;
-  color: var(--primary);
-  margin-bottom: 20px;
-  font-weight: bold;
-}
+.report-title { text-align: center; font-size: 16px; color: var(--primary); margin-bottom: 20px; font-weight: bold; }
 
 .kv-grid {
   display: flex; gap: 15px; justify-content: center;
@@ -74,17 +73,11 @@ input, textarea { width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1
   border-bottom: 1px dashed rgba(255,255,255,0.2);
 }
 
-.report-table {
-  width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 14px;
-}
-.report-table th, .report-table td {
-  border: 1px solid rgba(255,255,255,0.2); padding: 8px; text-align: center;
-}
+.report-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 14px; }
+.report-table th, .report-table td { border: 1px solid rgba(255,255,255,0.2); padding: 8px; text-align: center; }
 .report-table th { background: rgba(255,255,255,0.05); color: var(--primary); }
 
-.box-content {
-  background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px;
-}
+.box-content { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
 
 /* Features */
 .sticker-zone { padding:10px; border:1px dashed var(--line); margin-bottom:15px; border-radius:10px; }
@@ -95,41 +88,19 @@ input, textarea { width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1
 .row-between { display:flex; justify-content:space-between; align-items:center; }
 .row { display:flex; gap:10px; }
 
-/* 7. 갤러리 카드 디자인 (보고서 미니 버전) */
+/* 갤러리 카드 */
 .gallery-card {
-  /* .report 클래스와 비슷하지만 작게 */
-  border: 1px solid var(--primary);
-  background: rgba(18,28,46,0.9);
-  padding: 15px;
-  border-radius: 12px;
-  font-size: 12px;
-  position: relative;
+  border: 1px solid var(--primary); background: rgba(18,28,46,0.9);
+  padding: 15px; border-radius: 12px; font-size: 12px; position: relative;
 }
-.gallery-header {
-  text-align: center; font-weight: bold; color: #FF9A9E; margin-bottom: 4px;
-}
-/* assets/style.css 맨 아래 추가 */
+.gallery-header { text-align: center; font-weight: bold; color: #FF9A9E; margin-bottom: 4px; }
 
 /* 갤러리 삭제 버튼 */
 .btn-delete {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(239, 68, 68, 0.2); /* 붉은색 반투명 */
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
+  position: absolute; top: 10px; right: 10px;
+  background: rgba(239, 68, 68, 0.2); color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.5); border-radius: 50%;
+  width: 24px; height: 24px; font-size: 18px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;
 }
-.btn-delete:hover {
-  background: #ef4444;
-  color: white;
-}
+.btn-delete:hover { background: #ef4444; color: white; }
