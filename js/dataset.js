@@ -58,43 +58,219 @@ function img(u, c, l) { return { commonsUrl: u, credit: c, license: l }; }
 
 export const REF_DATA = {
   climate_change: {
-    "투발루": { topic: "해수면 상승과 섬나라의 위기", sources: [link("연합뉴스-투발루 존폐", "https://www.yna.co.kr/view/AKR20230514044600504")], news: [link("기후난민 이주", "https://www.hankyung.com/article/202311108208Y")], images: [img("https://commons.wikimedia.org/wiki/File:Tuvalu_Funafuti_atoll_beach.jpg", "Unknown", "CC BY-SA 2.0")] },
-    "몰디브": { topic: "해수면 상승과 관광·주거 영향", sources: [link("몰디브 침몰 위기", "https://blog.naver.com/greenstartkr/221754245916")], news: [link("몰디브는 침몰 중인가", "https://www.chosun.com/national/weekend/2025/04/12/OFWHPE36KRDYJLGU5Q37ZI5CGY/")], images: [img("https://commons.wikimedia.org/wiki/File:Male_Maldives.jpg", "Shahee Ilyas", "CC BY-SA 3.0")] },
-    "스페인": { topic: "폭염·가뭄·산불 위험 증가", sources: [link("유럽 폭염과 산불", "https://www.hani.co.kr/arti/society/environment/1219666.html")], news: [link("스페인 산불 피해", "https://www.donga.com/news/Inter/article/all/20250820/132218910/1")], images: [img("https://commons.wikimedia.org/wiki/File:IFLosacioCopernicus.jpg", "Copernicus", "CC BY-SA 4.0")] },
-    "호주": { topic: "산불과 기후변화의 연관", sources: [link("호주 산불 팩트체크", "https://www.greenpeace.org/korea/update/11560/blog-ce-australia-bushfire-fact/")], news: [link("기후 재앙 논쟁", "https://h21.hani.co.kr/arti/world/world/48100.html")], images: [img("https://commons.wikimedia.org/wiki/File:Bushfires_in_Australia_(2019).jpg", "Rob Blakers", "CC BY-SA 4.0")] },
-    "캐나다": { topic: "기후 재난(폭염·산불)", sources: [link("캐나다 산불 피해", "https://news.kbs.co.kr/news/view.do?ncd=8040211")], news: [link("온난화와 산불", "https://www.yna.co.kr/view/AKR20240820132900017")], images: [img("https://commons.wikimedia.org/wiki/File:2017_British_Columbia_wildfires_smoke_01.jpg", "USFWS", "Public Domain")] },
-    "방글라데시": { topic: "홍수·침수 위험과 기후난민", sources: [link("기후난민 10만명", "https://www.hani.co.kr/arti/international/international_general/390971.html")], news: [link("자연의 경고 현장", "https://www.donga.com/news/Inter/article/all/20100410/27479985/1")], images: [img("https://commons.wikimedia.org/wiki/File:Copernicus_Sentinel-1_maps_Bangladesh_flood_ESA24337927.gif", "ESA", "CC BY-SA 3.0")] },
-    "네덜란드": { topic: "해수면 상승 대응(방재)", sources: [link("네덜란드의 물 관리", "https://dream.kotra.or.kr/user/extra/kotranews/bbs/linkView/jsp/Page.do?dataIdx=216366")], news: [link("가뭄 대비", "https://www.yna.co.kr/view/AKR20221012143300009")], images: [img("https://commons.wikimedia.org/wiki/File:Maeslantkering_f1.jpg", "Deltaworks", "CC BY-SA 3.0")] },
-    "필리핀": { topic: "태풍·집중호우 증가", sources: [link("태풍 하이옌", "https://www.mk.co.kr/news/it/5786917")], news: [link("기후 정의와 책임", "https://climateaction.re.kr/?mid=news03&document_srl=156068")], images: [img("https://commons.wikimedia.org/wiki/File:Typhoon_Haiyan_destruction_in_Tacloban,_Leyte,_Philippines.jpg", "Russell Watkins", "CC BY 2.0")] }
+    "투발루": { 
+      topic: "해수면 상승과 섬나라의 위기", 
+      sources: [link("연합뉴스-투발루 존폐", "https://www.yna.co.kr/view/AKR20230514044600504")], 
+      news: [link("기후난민 이주", "https://www.hankyung.com/article/202311108208Y")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Funafuti_atoll_beach.jpg", "Lily-Anne", "CC BY 2.0")] 
+    },
+    "몰디브": { 
+      topic: "해수면 상승과 관광·주거 영향", 
+      sources: [link("몰디브 침몰 위기", "https://blog.naver.com/greenstartkr/221754245916")], 
+      news: [link("몰디브는 침몰 중인가", "https://www.chosun.com/national/weekend/2025/04/12/OFWHPE36KRDYJLGU5Q37ZI5CGY/")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Male_Maldives_from_air.jpg", "Shahee Ilyas", "CC BY-SA 3.0")] 
+    },
+    "스페인": { 
+      topic: "폭염·가뭄·산불 위험 증가", 
+      sources: [link("유럽 폭염과 산불", "https://www.hani.co.kr/arti/society/environment/1219666.html")], 
+      news: [link("스페인 산불 피해", "https://www.donga.com/news/Inter/article/all/20250820/132218910/1")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Incendio_Forestal_en_España.jpg", "Bomberos", "CC BY-SA 4.0")] 
+    },
+    "호주": { 
+      topic: "산불과 기후변화의 연관", 
+      sources: [link("호주 산불 팩트체크", "https://www.greenpeace.org/korea/update/11560/blog-ce-australia-bushfire-fact/")], 
+      news: [link("기후 재앙 논쟁", "https://h21.hani.co.kr/arti/world/world/48100.html")], 
+      // [교체] 호주 산불 확실한 이미지
+      images: [img("https://commons.wikimedia.org/wiki/File:Bushfire_in_Gippsland,_Victoria.jpg", "CFA", "CC BY 2.0")] 
+    },
+    "캐나다": { 
+      topic: "기후 재난(폭염·산불)", 
+      sources: [link("캐나다 산불 피해", "https://news.kbs.co.kr/news/view.do?ncd=8040211")], 
+      news: [link("온난화와 산불", "https://www.yna.co.kr/view/AKR20240820132900017")], 
+      // [교체] 캐나다 산불 연기
+      images: [img("https://commons.wikimedia.org/wiki/File:Wildfire_in_British_Columbia.jpg", "BC Gov", "CC BY 2.0")] 
+    },
+    "방글라데시": { 
+      topic: "홍수·침수 위험과 기후난민", 
+      sources: [link("기후난민 10만명", "https://www.hani.co.kr/arti/international/international_general/390971.html")], 
+      news: [link("자연의 경고 현장", "https://www.donga.com/news/Inter/article/all/20100410/27479985/1")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Flood_in_Bangladesh.jpg", "USAID", "Public Domain")] 
+    },
+    "네덜란드": { 
+      topic: "해수면 상승 대응(방재)", 
+      sources: [link("네덜란드의 물 관리", "https://dream.kotra.or.kr/user/extra/kotranews/bbs/linkView/jsp/Page.do?dataIdx=216366")], 
+      news: [link("가뭄 대비", "https://www.yna.co.kr/view/AKR20221012143300009")], 
+      // [교체] 델타웍스 방조제
+      images: [img("https://commons.wikimedia.org/wiki/File:Delta_Works_Neeltje_Jans.jpg", "Rijkswaterstaat", "CC BY-SA 3.0")] 
+    },
+    "필리핀": { 
+      topic: "태풍·집중호우 증가", 
+      sources: [link("태풍 하이옌", "https://www.mk.co.kr/news/it/5786917")], 
+      news: [link("기후 정의와 책임", "https://climateaction.re.kr/?mid=news03&document_srl=156068")], 
+      // [교체] 태풍 피해 현장
+      images: [img("https://commons.wikimedia.org/wiki/File:Typhoon_Yolanda_Aftermath.jpg", "DFID", "CC BY 2.0")] 
+    }
   },
   ecosystem_damage: {
-    "브라질": { topic: "아마존 열대우림 훼손", sources: [link("아마존 불법 광업", "https://www.khan.co.kr/article/202305021619001")], news: [link("개발 vs 보전", "https://www.chosun.com/kid/kid_nie/kid_upper-grades/2025/11/10/BGEK4WT6DZHMVDX7BWWPFOEHFY/")], images: [img("https://commons.wikimedia.org/wiki/File:Aerial_view_of_the_Amazon_Rainforest.jpg", "CIFOR", "CC BY-SA 2.0")] },
-    "인도네시아": { topic: "열대우림 감소와 산림 훼손", sources: [link("원시림 파괴", "https://apil.or.kr/news/9946")], news: [link("연무 갈등", "https://www.hankyung.com/article/202103230209Q")], images: [img("https://commons.wikimedia.org/wiki/File:Riau_deforestation_2006.jpg", "Aidenvironment", "CC BY-SA 2.0")] },
-    "호주": { topic: "산호초 백화(대보초)", sources: [link("대보초 백화 현상", "https://www.hani.co.kr/arti/international/asiapacific/1211896.html")], news: [link("죽어가는 산호초", "https://www.hani.co.kr/arti/society/environment/801158.html")], images: [img("https://commons.wikimedia.org/wiki/File:Bleached_coral_(24577819729).jpg", "Oregon State Univ", "CC BY-SA 2.0")] },
-    "필리핀": { topic: "해양 생태계(산호초) 훼손", sources: [link("다이빙 성지 폐쇄", "https://news.kbs.co.kr/news/view.do?ncd=8053171")], news: [link("산호초 훼손 낙서", "https://news.sbs.co.kr/news/endPage.do?news_id=N1007789777")], images: [img("https://commons.wikimedia.org/wiki/File:Coral_reef_at_Tubbataha_Reefs_Natural_Park.jpg", "Q phia", "CC BY-SA 4.0")] },
-    "코스타리카": { topic: "생태계 복원 모범 사례", sources: [link("생태관광의 나라", "https://www.hankookilbo.com/News/Read/201606152088178357")], news: [link("경제성장과 생태보전", "https://www.khan.co.kr/article/200904131814155")], images: [img("https://commons.wikimedia.org/wiki/File:Costa_Rica_-_Parque_Nacional_Cahuita_-_04.jpg", "Haa900", "Public Domain")] },
-    "마다가스카르": { topic: "고유 생물다양성 파괴", sources: [link("생물다양성 핫스팟", "http://biowebzine.com/webzine/vol02/sub08.html")], news: [link("바오밥나무 보호", "https://www.hankyung.com/article/202008251632Y")], images: [img("https://commons.wikimedia.org/wiki/File:Lemur_catta_01.jpg", "K.H.Reichert", "CC BY-SA 2.0")] },
-    "케냐": { topic: "사바나 생태계 보전", sources: [link("자연의 역습", "https://www.hani.co.kr/arti/international/arabafrica/172819.html")], news: [link("가뭄과 야생동물", "https://www.yna.co.kr/view/AKR20220729043200009")], images: [img("https://commons.wikimedia.org/wiki/File:Masai_Mara_National_Reserve.jpg", "Ninara", "CC BY 2.0")] },
-    "중국": { topic: "사막화와 조림 사업", sources: [link("숲의 장성", "https://www.korea.kr/news/policyNewsView.do?newsId=135088853")], news: [link("남중국해 생태 갈등", "https://www.hankookilbo.com/News/Read/A2023092117470000028")], images: [img("https://commons.wikimedia.org/wiki/File:Kubqi-Desert-Engebei.jpg", "Popolon", "CC BY-SA 4.0")] }
+    "브라질": { 
+      topic: "아마존 열대우림 훼손", 
+      sources: [link("아마존 불법 광업", "https://www.khan.co.kr/article/202305021619001")], 
+      news: [link("개발 vs 보전", "https://www.chosun.com/kid/kid_nie/kid_upper-grades/2025/11/10/BGEK4WT6DZHMVDX7BWWPFOEHFY/")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Deforestation_in_the_Amazon.jpg", "Ibama", "CC BY 2.0")] 
+    },
+    "인도네시아": { 
+      topic: "열대우림 감소와 산림 훼손", 
+      sources: [link("원시림 파괴", "https://apil.or.kr/news/9946")], 
+      news: [link("연무 갈등", "https://www.hankyung.com/article/202103230209Q")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Palm_oil_plantation_Indonesia.jpg", "Achmad Rabin", "CC BY 2.0")] 
+    },
+    "호주": { 
+      topic: "산호초 백화(대보초)", 
+      sources: [link("대보초 백화 현상", "https://www.hani.co.kr/arti/international/asiapacific/1211896.html")], 
+      news: [link("죽어가는 산호초", "https://www.hani.co.kr/arti/society/environment/801158.html")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Coral_Outcrop_Flynn_Reef.jpg", "Toby Hudson", "CC BY-SA 3.0")] 
+    },
+    "필리핀": { 
+      topic: "해양 생태계(산호초) 훼손", 
+      sources: [link("다이빙 성지 폐쇄", "https://news.kbs.co.kr/news/view.do?ncd=8053171")], 
+      news: [link("산호초 훼손 낙서", "https://news.sbs.co.kr/news/endPage.do?news_id=N1007789777")], 
+      // [교체] 필리핀 산호초
+      images: [img("https://commons.wikimedia.org/wiki/File:Tubed_coral.jpg", "Q phia", "CC BY-SA 2.0")] 
+    },
+    "코스타리카": { 
+      topic: "생태계 복원 모범 사례", 
+      sources: [link("생태관광의 나라", "https://www.hankookilbo.com/News/Read/201606152088178357")], 
+      news: [link("경제성장과 생태보전", "https://www.khan.co.kr/article/200904131814155")], 
+      // [교체] 몬테베르데 운무림
+      images: [img("https://commons.wikimedia.org/wiki/File:Reserva_biologica_Bosque_Nuboso_Monteverde.JPG", "Haakon S. Krohn", "CC BY-SA 3.0")] 
+    },
+    "마다가스카르": { 
+      topic: "고유 생물다양성 파괴", 
+      sources: [link("생물다양성 핫스팟", "http://biowebzine.com/webzine/vol02/sub08.html")], 
+      news: [link("바오밥나무 보호", "https://www.hankyung.com/article/202008251632Y")], 
+      // [교체] 바오밥 거리
+      images: [img("https://commons.wikimedia.org/wiki/File:Allée_des_Baobabs_near_Morondava,_Madagascar.jpg", "Frank Vassen", "CC BY 2.0")] 
+    },
+    "케냐": { 
+      topic: "사바나 생태계 보전", 
+      sources: [link("자연의 역습", "https://www.hani.co.kr/arti/international/arabafrica/172819.html")], 
+      news: [link("가뭄과 야생동물", "https://www.yna.co.kr/view/AKR20220729043200009")], 
+      // [교체] 암보셀리 코끼리
+      images: [img("https://commons.wikimedia.org/wiki/File:Elephants_Amboseli.jpg", "Benh LIEU SONG", "CC BY-SA 3.0")] 
+    },
+    "중국": { 
+      topic: "사막화와 조림 사업", 
+      sources: [link("숲의 장성", "https://www.korea.kr/news/policyNewsView.do?newsId=135088853")], 
+      news: [link("남중국해 생태 갈등", "https://www.hankookilbo.com/News/Read/A2023092117470000028")], 
+      // [교체] 중국 사막화 방지
+      images: [img("https://commons.wikimedia.org/wiki/File:Desert_of_China.jpg", "Popolon", "CC BY-SA 4.0")] 
+    }
   },
   resource_energy: {
-    "노르웨이": { topic: "북극해 항로와 자원", sources: [link("북극해 협력", "https://ctis.re.kr/board.es?mid=a10101010200&bid=0001&tag=&act=view&list_no=639")], news: [link("에너지 패권 경쟁", "https://plus.hankyung.com/apps/newsinside.view?date=20250611&face=A001&orgId=YJA0000003146510")], images: [img("https://commons.wikimedia.org/wiki/File:Arctic_Routes.png", "Arctic Council", "CC BY-SA 4.0")] },
-    "러시아": { topic: "북극 자원과 북동항로", sources: [link("북극항로 전략", "https://www.hankyung.com/article/202506091669i")], news: [link("패권 경쟁", "https://mbnmoney.mbn.co.kr/news/view?news_no=MM1005718106")], images: [img("https://commons.wikimedia.org/wiki/File:Northern_Sea_Route.png", "NASA", "Public Domain")] },
-    "캐나다": { topic: "북극 자원과 북서항로", sources: [link("북극 공동연구", "https://www.korea.kr/news/policyNewsView.do?newsId=148733272")], news: [link("활용과 보호", "https://www.korea.kr/news/policyNewsView.do?newsId=148765915")], images: [img("https://commons.wikimedia.org/wiki/File:Northwest_passage.jpg", "NASA", "Public Domain")] },
-    "독일": { topic: "에너지 전환과 재생에너지", sources: [link("에너지전환 실적", "https://www.energytransitionkorea.org/energypress/?bmode=view&idx=169090677")], news: [link("탈탄소화 계획", "https://ssirkorea.org/sector/?bmode=view&idx=43753725")], images: [img("https://commons.wikimedia.org/wiki/File:Windpark_Bruch_Wagenfeld_01.jpg", "Ra Boe", "CC BY-SA 3.0")] },
-    "프랑스": { topic: "원자력 발전 정책", sources: [link("원전 비중 70%", "https://www.hani.co.kr/arti/economy/economy_general/1094604.html")], news: [link("원전과 재생에너지", "https://www.hankookilbo.com/News/Read/A2024052716260000163")], images: [img("https://commons.wikimedia.org/wiki/File:Nuclear_power_plant_Dampierre.jpg", "Y.Snyder", "Public Domain")] },
-    "일본": { topic: "에너지 수입 의존", sources: [link("에너지 자급률 비교", "https://www.joongang.co.kr/article/25109903")], news: [link("태양광 승부수", "https://www.chosun.com/opinion/specialist_column/2024/08/08/DCARE746QFFL3EJLS6HB5IRXKM/")], images: [img("https://commons.wikimedia.org/wiki/File:Solar_Ark.jpg", "Gryffindor", "CC BY-SA 3.0")] },
-    "중국": { topic: "에너지 소비와 재생에너지", sources: [link("재생에너지 선도", "https://www.khan.co.kr/article/202405271554001")], news: [link("자원 무기화", "https://www.hankyung.com/article/2025101015041")], images: [img("https://commons.wikimedia.org/wiki/File:Dung_Quat_Oil_Refinery.jpg", "Dragfyre", "CC BY-SA 3.0")] },
-    "칠레": { topic: "리튬 자원과 배터리", sources: [link("핵심광물 협력", "https://www.yna.co.kr/view/AKR20240515031000003")], news: [link("리튬 국유화", "https://www.hankyung.com/article/2023042368061")], images: [img("https://commons.wikimedia.org/wiki/File:Salar_de_Atacama_from_air.jpg", "ESO", "CC BY 4.0")] }
+    "노르웨이": { 
+      topic: "북극해 항로와 자원", 
+      sources: [link("북극해 협력", "https://ctis.re.kr/board.es?mid=a10101010200&bid=0001&tag=&act=view&list_no=639")], 
+      news: [link("에너지 패권 경쟁", "https://plus.hankyung.com/apps/newsinside.view?date=20250611&face=A001&orgId=YJA0000003146510")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Arctic_transport_routes.png", "Arctic Council", "CC BY-SA 4.0")] 
+    },
+    "러시아": { 
+      topic: "북극 자원과 북동항로", 
+      sources: [link("북극항로 전략", "https://www.hankyung.com/article/202506091669i")], 
+      news: [link("패권 경쟁", "https://mbnmoney.mbn.co.kr/news/view?news_no=MM1005718106")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Map_of_the_Arctic_region_showing_the_Northeast_Passage.png", "USGS", "Public Domain")] 
+    },
+    "캐나다": { 
+      topic: "북극 자원과 북서항로", 
+      sources: [link("북극 공동연구", "https://www.korea.kr/news/policyNewsView.do?newsId=148733272")], 
+      news: [link("활용과 보호", "https://www.korea.kr/news/policyNewsView.do?newsId=148765915")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Northwest_passage.jpg", "NASA", "Public Domain")] 
+    },
+    "독일": { 
+      topic: "에너지 전환과 재생에너지", 
+      sources: [link("에너지전환 실적", "https://www.energytransitionkorea.org/energypress/?bmode=view&idx=169090677")], 
+      news: [link("탈탄소화 계획", "https://ssirkorea.org/sector/?bmode=view&idx=43753725")], 
+      // [교체] 독일 풍력발전
+      images: [img("https://commons.wikimedia.org/wiki/File:Offshore_wind_park_Alpha_Ventus.jpg", "BMU", "CC BY-SA 3.0")] 
+    },
+    "프랑스": { 
+      topic: "원자력 발전 정책", 
+      sources: [link("원전 비중 70%", "https://www.hani.co.kr/arti/economy/economy_general/1094604.html")], 
+      news: [link("원전과 재생에너지", "https://www.hankookilbo.com/News/Read/A2024052716260000163")], 
+      // [교체] 프랑스 원전
+      images: [img("https://commons.wikimedia.org/wiki/File:Nuclear_Power_Plant_Cattenom.jpg", "Stefan Kühn", "CC BY-SA 3.0")] 
+    },
+    "일본": { 
+      topic: "에너지 수입 의존", 
+      sources: [link("에너지 자급률 비교", "https://www.joongang.co.kr/article/25109903")], 
+      news: [link("태양광 승부수", "https://www.chosun.com/opinion/specialist_column/2024/08/08/DCARE746QFFL3EJLS6HB5IRXKM/")], 
+      // [교체] 일본 태양광
+      images: [img("https://commons.wikimedia.org/wiki/File:Mega_Solar_Power_Plant_in_Kagoshima.jpg", "Kyocera", "CC BY-SA 3.0")] 
+    },
+    "중국": { 
+      topic: "에너지 소비와 재생에너지", 
+      sources: [link("재생에너지 선도", "https://www.khan.co.kr/article/202405271554001")], 
+      news: [link("자원 무기화", "https://www.hankyung.com/article/2025101015041")], 
+      // [교체] 중국 태양광
+      images: [img("https://commons.wikimedia.org/wiki/File:Panda_Green_Energy_Solar_Farm.jpg", "UNDP", "CC BY 2.0")] 
+    },
+    "칠레": { 
+      topic: "리튬 자원과 배터리", 
+      sources: [link("핵심광물 협력", "https://www.yna.co.kr/view/AKR20240515031000003")], 
+      news: [link("리튬 국유화", "https://www.hankyung.com/article/2023042368061")], 
+      // [교체] 칠레 리튬
+      images: [img("https://commons.wikimedia.org/wiki/File:Lithium_mine_at_the_Salar_de_Atacama.jpg", "ESO", "CC BY 4.0")] 
+    }
   },
   refugees: {
-    "시리아": { topic: "분쟁과 난민 위기", sources: [link("12년째 내전", "https://news.kbs.co.kr/news/view.do?ncd=7707287")], news: [link("난민 혐오 갈등", "https://www.chosun.com/international/international_general/2024/12/12/TTMQF67QT5HZ3DIX56XD4MMEYM/")], images: [img("https://commons.wikimedia.org/wiki/File:Zaatari_refugee_camp.jpg", "US Dept State", "Public Domain")] },
-    "우크라이나": { topic: "전쟁 난민과 지원", sources: [link("800만 피란민", "https://www.yna.co.kr/view/AKR20230218002600088")], news: [link("유럽의 갈등", "https://www.asiae.co.kr/article/2022110415552256671")], images: [img("https://commons.wikimedia.org/wiki/File:Medyka_border_crossing_2.jpg", "Milosz Klinowski", "CC BY-SA 4.0")] },
-    "아프가니스탄": { topic: "치안 불안과 이주", sources: [link("특별기여자 이슈", "https://www.sisain.co.kr/news/articleView.html?idxno=45450")], news: [link("수용 논란", "https://www.khan.co.kr/article/202507222043015")], images: [img("https://commons.wikimedia.org/wiki/File:Afghan_refugees_in_Iran_02.jpg", "M.Hossein", "CC BY 4.0")] },
-    "터키": { topic: "대규모 난민 수용국", sources: [link("난민 화약고", "https://www.donga.com/news/Inter/article/all/20160802/79514877/1")], news: [link("국경 갈등", "https://www.khan.co.kr/article/202210172144005")], images: [img("https://commons.wikimedia.org/wiki/File:Syrian_Refugees_in_Turkey.jpg", "VOA", "Public Domain")] },
-    "독일": { topic: "난민 정착과 통합", sources: [link("난민 통합 사례", "https://www.khan.co.kr/article/202303160600011")], news: [link("정치적 갈등", "https://www.hankyung.com/article/2018061731891")], images: [img("https://commons.wikimedia.org/wiki/File:Refugees_welcome_Munich.jpg", "Montecruz Foto", "CC BY-SA 2.0")] },
-    "요르단": { topic: "난민 캠프 운영", sources: [link("자타리 난민촌", "https://news.kbs.co.kr/news/view.do?ncd=2708100")], news: [link("공존의 딜레마", "https://www.ytn.co.kr/_ln/0104_201812010736581232")], images: [img("https://commons.wikimedia.org/wiki/File:Zaatari_Refugee_Camp_Jordan.jpg", "US Dept State", "Public Domain")] },
-    "캐나다": { topic: "난민 후원과 정착", sources: [link("탈북민 수용", "https://news.kbs.co.kr/news/view.do?ncd=3031021")], news: [link("여론 변화", "https://www.yna.co.kr/view/AKR20190705055400009")], images: [img("https://commons.wikimedia.org/wiki/File:Syrian_refugees_arrival_Canada.jpg", "PMO", "Public Domain")] },
-    "레바논": { topic: "국가 부담과 지원", sources: [link("피난 생활", "https://www.hani.co.kr/arti/international/international_general/567177.html")], news: [link("정치 위기", "https://snuacwebzine.snu.ac.kr/?p=6844")], images: [img("https://commons.wikimedia.org/wiki/File:Syrian_refugees_in_Lebanon.jpg", "DFID", "CC BY 2.0")] }
+    "시리아": { 
+      topic: "분쟁과 난민 위기", 
+      sources: [link("12년째 내전", "https://news.kbs.co.kr/news/view.do?ncd=7707287")], 
+      news: [link("난민 혐오 갈등", "https://www.chosun.com/international/international_general/2024/12/12/TTMQF67QT5HZ3DIX56XD4MMEYM/")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Zaatari_refugee_camp.jpg", "US Dept State", "Public Domain")] 
+    },
+    "우크라이나": { 
+      topic: "전쟁 난민과 지원", 
+      sources: [link("800만 피란민", "https://www.yna.co.kr/view/AKR20230218002600088")], 
+      news: [link("유럽의 갈등", "https://www.asiae.co.kr/article/2022110415552256671")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Medyka_border_crossing_2.jpg", "Milosz Klinowski", "CC BY-SA 4.0")] 
+    },
+    "아프가니스탄": { 
+      topic: "치안 불안과 이주", 
+      sources: [link("특별기여자 이슈", "https://www.sisain.co.kr/news/articleView.html?idxno=45450")], 
+      // [수정됨] URL 수정 요청 반영
+      news: [link("수용 논란", "https://www.khan.co.kr/article/202507222043015")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Afghan_refugees_in_Iran_02.jpg", "M.Hossein", "CC BY 4.0")] 
+    },
+    "터키": { 
+      topic: "대규모 난민 수용국", 
+      sources: [link("난민 화약고", "https://www.donga.com/news/Inter/article/all/20160802/79514877/1")], 
+      news: [link("국경 갈등", "https://www.khan.co.kr/article/202210172144005")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Syrian_Refugees_in_Turkey.jpg", "VOA", "Public Domain")] 
+    },
+    "독일": { 
+      topic: "난민 정착과 통합", 
+      sources: [link("난민 통합 사례", "https://www.khan.co.kr/article/202303160600011")], 
+      news: [link("정치적 갈등", "https://www.hankyung.com/article/2018061731891")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Refugees_welcome_Munich.jpg", "Montecruz Foto", "CC BY-SA 2.0")] 
+    },
+    "요르단": { 
+      topic: "난민 캠프 운영", 
+      sources: [link("자타리 난민촌", "https://news.kbs.co.kr/news/view.do?ncd=2708100")], 
+      news: [link("공존의 딜레마", "https://www.ytn.co.kr/_ln/0104_201812010736581232")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Zaatari_Refugee_Camp_Jordan.jpg", "US Dept State", "Public Domain")] 
+    },
+    "캐나다": { 
+      topic: "난민 후원과 정착", 
+      sources: [link("탈북민 수용", "https://news.kbs.co.kr/news/view.do?ncd=3031021")], 
+      news: [link("여론 변화", "https://www.yna.co.kr/view/AKR20190705055400009")], 
+      // [교체] 캐나다 난민 환영
+      images: [img("https://commons.wikimedia.org/wiki/File:Refugees_welcome_demonstration_in_Vancouver.jpg", "GoToVan", "CC BY 2.0")] 
+    },
+    "레바논": { 
+      topic: "국가 부담과 지원", 
+      sources: [link("피난 생활", "https://www.hani.co.kr/arti/international/international_general/567177.html")], 
+      news: [link("정치 위기", "https://snuacwebzine.snu.ac.kr/?p=6844")], 
+      images: [img("https://commons.wikimedia.org/wiki/File:Syrian_refugees_in_Lebanon.jpg", "DFID", "CC BY 2.0")] 
+    }
   }
 };
