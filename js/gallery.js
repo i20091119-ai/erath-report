@@ -4,9 +4,7 @@ import { db } from "./firebase-init.js";
 import { escapeHtml } from "./commons.js";
 
 const listEl = document.getElementById("galleryList");
-
-// ★ 선생님이 사용할 삭제 비밀번호 (원하는 대로 바꾸세요)
-const ADMIN_PASSWORD = "1234"; 
+const ADMIN_PASSWORD = "0228"; 
 
 async function loadGallery() {
   listEl.innerHTML = `<div class="meta">작품을 불러오는 중...</div>`;
@@ -22,7 +20,7 @@ async function loadGallery() {
 
     snapshot.forEach(documentSnapshot => {
       const d = documentSnapshot.data();
-      const docId = documentSnapshot.id; // 삭제를 위해 문서 ID가 필요함
+      const docId = documentSnapshot.id; 
 
       const card = document.createElement("div");
       card.className = "gallery-card"; 
@@ -42,6 +40,16 @@ async function loadGallery() {
           <span style="color:#aaa;">관련국가:</span> <b>${escapeHtml(d.countryKo)}</b>
         </div>
         
+        <div style="background:rgba(255,255,255,0.05); padding:8px; border-radius:4px; margin-bottom:8px;">
+           <div style="color:#aaa; font-size:11px; margin-bottom:4px;">갈등 상황 분석</div>
+           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:12px;">
+             <div><span style="color:#38bdf8;">누가:</span> ${escapeHtml(d.causeWho || "-")}</div>
+             <div><span style="color:#38bdf8;">무엇을:</span> ${escapeHtml(d.causeWhat || "-")}</div>
+             <div><span style="color:#38bdf8;">왜:</span> ${escapeHtml(d.causeWhy || "-")}</div>
+             <div><span style="color:#38bdf8;">결과는:</span> ${escapeHtml(d.causeResult || "-")}</div>
+           </div>
+        </div>
+
         <div style="background:rgba(255,255,255,0.05); padding:6px; border-radius:4px; margin-bottom:8px;">
            <div style="color:#aaa; font-size:11px;">문제요약</div>
            <div>${escapeHtml(d.causeSummary || "-")}</div>
@@ -57,7 +65,6 @@ async function loadGallery() {
         ${d.hasCustomImage ? '<div style="position:absolute; bottom:10px; right:10px; font-size:16px;">📸</div>' : ''}
       `;
 
-      // 삭제 버튼 이벤트 연결
       const delBtn = card.querySelector(".btn-delete");
       delBtn.onclick = async () => {
         const input = prompt("삭제하려면 비밀번호를 입력하세요.");
@@ -65,7 +72,7 @@ async function loadGallery() {
           if(confirm("정말 삭제하시겠습니까?")) {
             await deleteDoc(doc(db, "gallery", docId));
             alert("삭제되었습니다.");
-            loadGallery(); // 목록 새로고침
+            loadGallery(); 
           }
         } else if (input !== null) {
           alert("비밀번호가 틀렸습니다.");
