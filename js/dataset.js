@@ -55,17 +55,16 @@ export const COUNTRY_BUTTONS = {
 
 function link(t, u) { return { title: t, url: u }; }
 
-// [수정] 내 컴퓨터의 assets/images 폴더를 가리킴
-function img(filename, c = "선생님 제공 자료") { 
+// [중요] 경로 설정 함수
+function img(filename) { 
   return { 
     commonsUrl: `./assets/images/${filename}`, 
-    credit: c, 
+    credit: "선생님 제공 자료", 
     license: "" 
   }; 
 }
 
 export const REF_DATA = {
-  // 1. 기후변화 (1_국가명.jpg)
   climate_change: {
     "투발루": { 
       topic: "해수면 상승과 섬나라의 위기", 
@@ -116,8 +115,6 @@ export const REF_DATA = {
       images: [img("1_philippines.jpg")] 
     }
   },
-  
-  // 2. 생태계 파괴 (2_국가명.jpg)
   ecosystem_damage: {
     "브라질": { 
       topic: "아마존 열대우림 훼손", 
@@ -168,14 +165,12 @@ export const REF_DATA = {
       images: [img("2_china.jpg")] 
     }
   },
-  
-  // 3. 자원 및 에너지 (3_국가명.jpg)
   resource_energy: {
     "노르웨이": { 
       topic: "북극해 항로와 자원", 
       sources: [link("북극해 협력", "https://ctis.re.kr/board.es?mid=a10101010200&bid=0001&tag=&act=view&list_no=639")], 
       news: [link("에너지 패권 경쟁", "https://plus.hankyung.com/apps/newsinside.view?date=20250611&face=A001&orgId=YJA0000003146510")], 
-      images: [img("3_norway.png")] 
+      images: [img("3_norway.jpg")] 
     },
     "러시아": { 
       topic: "북극 자원과 북동항로", 
@@ -199,7 +194,7 @@ export const REF_DATA = {
       topic: "원자력 발전 정책", 
       sources: [link("원전 비중 70%", "https://www.hani.co.kr/arti/economy/economy_general/1094604.html")], 
       news: [link("원전과 재생에너지", "https://www.hankookilbo.com/News/Read/A2024052716260000163")], 
-      images: [img("3_france.png")] 
+      images: [img("3_france.jpg")] 
     },
     "일본": { 
       topic: "에너지 수입 의존", 
@@ -220,8 +215,6 @@ export const REF_DATA = {
       images: [img("3_chile.jpg")] 
     }
   },
-
-  // 4. 난민 (4_국가명.jpg)
   refugees: {
     "시리아": { 
       topic: "분쟁과 난민 위기", 
