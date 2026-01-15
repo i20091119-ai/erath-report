@@ -24,13 +24,17 @@ const btnPdf = document.getElementById("btnPdf");
 const btnShareGallery = document.getElementById("btnShareGallery");
 const btnRandom = document.getElementById("btnRandom");
 
+// Inputs
 const authorName = document.getElementById("authorName");
 const authorGrade = document.getElementById("authorGrade");
 const authorDate = document.getElementById("authorDate");
+const relatedCountry = document.getElementById("relatedCountry");
 const causeWho = document.getElementById("causeWho");
+const causeWhat = document.getElementById("causeWhat");
 const causeWhy = document.getElementById("causeWhy");
-const causeChange = document.getElementById("causeChange");
-const reflection = document.getElementById("reflection");
+const causeResult = document.getElementById("causeResult");
+const causeSummary = document.getElementById("causeSummary");
+const influence = document.getElementById("influence");
 
 const reportPreview = document.getElementById("reportPreview");
 const stickerPalette = document.getElementById("stickerPalette");
@@ -45,7 +49,9 @@ let state = {
   tempImageIndex: null
 };
 
-// 1. 초기화 & 버튼 렌더링
+// 3. 날짜 자동 지정
+authorDate.value = new Date().toISOString().split('T')[0];
+
 function renderIssueButtons() {
   elIssueButtons.innerHTML = "";
   Object.entries(ISSUE_KEYS).forEach(([k, label]) => {
@@ -83,7 +89,6 @@ function renderCountryButtons() {
   });
 }
 
-// 2. 자료 로딩
 async function loadReference(issueKey, countryKo, countryEn) {
   const d = REF_DATA?.[issueKey]?.[countryKo];
   if (!d) return alert("자료가 없습니다.");
@@ -92,7 +97,9 @@ async function loadReference(issueKey, countryKo, countryEn) {
   state.countryEn = countryEn;
   state.topic = d.topic || "";
   
-  // 이미지 로딩
+  // 관련 국가 자동 입력
+  relatedCountry.value = countryKo;
+  
   state.images = await enrichCommonsImages((d.images || []).map(x => ({ ...x })));
 
   refCard.style.display = "";
@@ -103,7 +110,6 @@ async function loadReference(issueKey, countryKo, countryEn) {
   refTitle.textContent = `${state.issueLabel} · ${countryKo}`;
   refMeta.textContent = state.topic ? `주제: ${state.topic}` : "";
 
-  // 목록 렌더링
   const renderList = (el, list) => {
     el.innerHTML = "";
     (list || []).forEach(x => {
@@ -118,7 +124,6 @@ async function loadReference(issueKey, countryKo, countryEn) {
   renderRefImages();
 }
 
-// 3. 사진 렌더링 & 교체 로직
 function renderRefImages() {
   refImages.innerHTML = "";
   state.images.forEach((img, idx) => {
@@ -164,14 +169,13 @@ fileInput.onchange = (e) => {
   fileInput.value = "";
 };
 
-// 4. 미리보기 생성
+// 6. 보고서 헤더 고정 및 양식 변경
 btnPreview.onclick = () => {
   if (!state.issueKey) return alert("주제를 선택하세요.");
   previewCard.style.display = "";
   
   const imgHtml = `
-    <h3>관련 이미지</h3>
-    <div class="images">
+    <div class="images" style="margin-top:10px;">
       ${state.images.slice(0, 2).map(img => `
         <div class="imgcard">
           <img src="${img.thumbUrl}" crossorigin="anonymous" style="width:100%;display:block;">
@@ -182,28 +186,49 @@ btnPreview.onclick = () => {
   `;
 
   reportPreview.innerHTML = `
-    <h2>${escapeHtml(state.issueLabel)} · ${escapeHtml(state.countryKo)}</h2>
-    <div class="kv">
-      <div>작성자</div><div><b>${escapeHtml(authorName.value)}</b></div>
-      <div>학년</div><div><b>${escapeHtml(authorGrade.value)}</b></div>
-      <div>날짜</div><div><b>${escapeHtml(authorDate.value)}</b></div>
+    <div class="report-header">지구촌 문제</div>
+    <div class="report-title">${escapeHtml(state.topic)}</div>
+    
+    <div class="kv-grid">
+      <div>작성자: <b>${escapeHtml(authorName.value)}</b></div>
+      <div>학년: <b>${escapeHtml(authorGrade.value)}</b></div>
+      <div>날짜: <b>${escapeHtml(authorDate.value)}</b></div>
     </div>
+    
+    <div style="margin-top:10px; font-size:14px;">
+      관련 국가: <b>${escapeHtml(relatedCountry.value)}</b>
+    </div>
+
     <hr style="margin:12px 0;border-top:1px solid rgba(255,255,255,0.2);">
-    <h3>갈등 상황</h3>
-    <div class="kv">
-      <div>누가?</div><div>${escapeHtml(causeWho.value)}</div>
-      <div>왜?</div><div>${escapeHtml(causeWhy.value)}</div>
-      <div>결과</div><div>${escapeHtml(causeChange.value)}</div>
-    </div>
-    <h3>나의 생각</h3>
-    <div style="white-space:pre-line;color:#dbe8ff;line-height:1.6;">${escapeHtml(reflection.value)}</div>
+    
+    <h3>갈등 상황 분석</h3>
+    <table class="report-table">
+      <tr>
+        <th>누가?</th>
+        <th>무엇을?</th>
+        <th>왜?</th>
+        <th>결과는?</th>
+      </tr>
+      <tr>
+        <td>${escapeHtml(causeWho.value)}</td>
+        <td>${escapeHtml(causeWhat.value)}</td>
+        <td>${escapeHtml(causeWhy.value)}</td>
+        <td>${escapeHtml(causeResult.value)}</td>
+      </tr>
+    </table>
+
+    <h3>문제 및 갈등 상황</h3>
+    <div class="box-content">${escapeHtml(causeSummary.value)}</div>
+
+    <h3>영향 (지구촌과 우리의 생활)</h3>
+    <div class="box-content">${escapeHtml(influence.value)}</div>
+    
     ${imgHtml}
   `;
   
   setTimeout(() => previewCard.scrollIntoView({ behavior: "smooth" }), 100);
 };
 
-// 5. PDF 다운로드
 btnPdf.onclick = async () => {
   if (!window.jspdf) return alert("PDF 라이브러리 로딩 중...");
   
@@ -234,18 +259,27 @@ btnPdf.onclick = async () => {
   pdf.save(`보고서_${state.countryKo}_${authorName.value}.pdf`);
 };
 
-// 6. 갤러리 공유 (Firebase)
 btnShareGallery.onclick = async () => {
   if (!confirm("갤러리에 올릴까요?")) return;
-  if (!authorName.value.trim() || !reflection.value.trim()) return alert("내용을 입력해주세요.");
+  if (!authorName.value.trim()) return alert("이름을 입력해주세요.");
 
   try {
+    // 7. 갤러리 저장을 위한 데이터 (보고서 내용을 그대로 저장)
     await addDoc(collection(db, "gallery"), {
       issueLabel: state.issueLabel,
-      countryKo: state.countryKo,
+      topic: state.topic,
+      countryKo: relatedCountry.value || state.countryKo,
       authorName: authorName.value.trim(),
       authorGrade: authorGrade.value.trim(),
-      reflection: reflection.value.trim(),
+      authorDate: authorDate.value,
+      
+      causeWho: causeWho.value,
+      causeWhat: causeWhat.value,
+      causeWhy: causeWhy.value,
+      causeResult: causeResult.value,
+      causeSummary: causeSummary.value,
+      influence: influence.value,
+      
       hasCustomImage: !!state.images.find(x => x.isCustom),
       createdAt: serverTimestamp()
     });
@@ -257,7 +291,6 @@ btnShareGallery.onclick = async () => {
   }
 };
 
-// 7. 기타 기능 (랜덤, 스티커)
 btnReset.onclick = () => resetPanels(true);
 function resetPanels(all) {
   if(all) { state.issueKey = null; [...elIssueButtons.children].forEach(x => x.classList.remove("active")); }
@@ -274,7 +307,6 @@ btnRandom.onclick = () => {
   loadReference(rKey, rC.countryKo, rC.countryEn);
 };
 
-// 스티커
 const STICKERS = ["👍", "❤️", "⭐", "🔥", "✅", "지구지킴이", "참잘했어요", "환경보호", "💯"];
 stickerPalette.innerHTML = "";
 STICKERS.forEach(text => {
@@ -292,11 +324,10 @@ STICKERS.forEach(text => {
     el.style.left = `${Math.random()*(w*0.7) + (w*0.1)}px`;
     el.style.top = `${Math.random()*(h*0.7) + (h*0.1)}px`;
     el.style.transform = `rotate(${Math.random()*40-20}deg)`;
-    el.onclick = () => { if(confirm("삭제?")) el.remove(); };
+    el.onclick = () => { if(confirm("삭제할까요?")) el.remove(); };
     reportPreview.appendChild(el);
   };
   stickerPalette.appendChild(btn);
 });
 
-// 시작
 renderIssueButtons();
