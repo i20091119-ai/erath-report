@@ -1,9 +1,12 @@
 // js/gallery.js
-import { collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { db } from "./firebase-init.js";
-import { escapeHtml } from "./commons.js"; // escapeHtml 재사용
+import { escapeHtml } from "./commons.js";
 
 const listEl = document.getElementById("galleryList");
+
+// ★ 선생님이 사용할 삭제 비밀번호 (원하는 대로 바꾸세요)
+const ADMIN_PASSWORD = "1234"; 
 
 async function loadGallery() {
   listEl.innerHTML = `<div class="meta">작품을 불러오는 중...</div>`;
@@ -17,14 +20,17 @@ async function loadGallery() {
       return;
     }
 
-    snapshot.forEach(doc => {
-      const d = doc.data();
+    snapshot.forEach(documentSnapshot => {
+      const d = documentSnapshot.data();
+      const docId = documentSnapshot.id; // 삭제를 위해 문서 ID가 필요함
+
       const card = document.createElement("div");
-      // 7. 갤러리 카드를 보고서 모양 그대로 렌더링
       card.className = "gallery-card"; 
       
       card.innerHTML = `
         <div class="gallery-header">지구촌 문제</div>
+        <button class="btn-delete" title="삭제하기">×</button> 
+        
         <div style="text-align:center; color:#38bdf8; margin-bottom:8px; font-weight:bold;">${escapeHtml(d.issueLabel)}</div>
         
         <div style="display:flex; justify-content:center; gap:8px; color:#9ca3af; margin-bottom:8px; border-bottom:1px dashed #444; padding-bottom:4px;">
@@ -48,8 +54,24 @@ async function loadGallery() {
            </div>
         </div>
         
-        ${d.hasCustomImage ? '<div style="position:absolute; top:10px; right:10px; font-size:16px;">📸</div>' : ''}
+        ${d.hasCustomImage ? '<div style="position:absolute; bottom:10px; right:10px; font-size:16px;">📸</div>' : ''}
       `;
+
+      // 삭제 버튼 이벤트 연결
+      const delBtn = card.querySelector(".btn-delete");
+      delBtn.onclick = async () => {
+        const input = prompt("삭제하려면 비밀번호를 입력하세요.");
+        if (input === ADMIN_PASSWORD) {
+          if(confirm("정말 삭제하시겠습니까?")) {
+            await deleteDoc(doc(db, "gallery", docId));
+            alert("삭제되었습니다.");
+            loadGallery(); // 목록 새로고침
+          }
+        } else if (input !== null) {
+          alert("비밀번호가 틀렸습니다.");
+        }
+      };
+
       listEl.appendChild(card);
     });
   } catch (e) {
