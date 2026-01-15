@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>탐구 활동</title>
+  <link rel="stylesheet" href="./assets/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="./index.html">지구촌 문제 탐구</a></h1>
+      <a href="./gallery.html" class="btn">갤러리</a>
+    </div>
+  </header>
+  <main class="container">
+    <section class="card">
+      <div class="row-between">
+        <h2>1) 문제 유형</h2>
+        <button id="btnRandom" class="btn primary random-btn">🎲 운명의 뽑기</button>
+      </div>
+      <div id="issueButtons" class="pill-row"></div>
+    </section>
+
+    <section class="card">
+      <h2>2) 국가 선택</h2>
+      <div id="countryButtons" class="grid"></div>
+    </section>
+
+    <section class="card" id="refCard" style="display:none;">
+      <div class="row-between">
+        <h2 id="refTitle">자료</h2>
+        <button id="btnReset" class="btn">처음으로</button>
+      </div>
+      <div id="refMeta" style="color:#9ca3af; margin-bottom:15px;"></div>
+      <div class="grid">
+        <div>
+          <h3>자료 / 기사</h3>
+          <ul id="refSources" style="padding-left:20px;"></ul>
+          <ul id="refNews" style="padding-left:20px;"></ul>
+        </div>
+        <div>
+          <h3>이미지 (클릭하여 교체)</h3>
+          <div id="refImages" class="images"></div>
+          <input type="file" id="fileInput" hidden accept="image/*">
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="writeCard" style="display:none;">
+      <h2>3) 보고서 작성</h2>
+      <div class="form-grid">
+        <label>작성자<input id="authorName"></label>
+        <label>학년<input id="authorGrade"></label>
+        <label>날짜<input id="authorDate" placeholder="2026-01-15"></label>
+      </div>
+      <div class="form-grid-3">
+        <label>누가?<input id="causeWho"></label>
+        <label>왜?<input id="causeWhy"></label>
+        <label>결과<input id="causeChange"></label>
+      </div>
+      <label>나의 생각<textarea id="reflection" rows="4"></textarea></label>
+      <div style="margin-top:15px;">
+        <button id="btnPreview" class="btn primary">미리보기</button>
+      </div>
+    </section>
+
+    <section class="card" id="previewCard" style="display:none;">
+      <div class="row-between">
+        <h2>미리보기</h2>
+        <div class="row">
+          <button id="btnPdf" class="btn secondary">📄 PDF 다운</button>
+          <button id="btnShareGallery" class="btn primary">🏆 갤러리 등록</button>
+        </div>
+      </div>
+      <div class="sticker-zone">
+        <div style="font-size:12px; color:#9ca3af; margin-bottom:5px;">스티커로 꾸며보세요!</div>
+        <div id="stickerPalette" class="pill-row"></div>
+      </div>
+      <div id="reportPreview" class="report"></div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
