@@ -247,3 +247,5 @@ input:focus, textarea:focus {
 /* 하단 로고 */
 .site-footer { text-align: center; padding: 28px 16px 36px; }
 .site-footer img { height: 34px; width: auto; opacity: .9; }
+header h1 { display: flex; align-items: center; gap: 10px; }
+header .crest { height: 38px; width: auto; flex: none; }
