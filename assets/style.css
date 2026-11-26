@@ -243,3 +243,7 @@ input:focus, textarea:focus {
   cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;
 }
 .btn-delete:hover { background: #ef4444; color: white; border-color: #ef4444; }
+
+/* 하단 로고 */
+.site-footer { text-align: center; padding: 28px 16px 36px; }
+.site-footer img { height: 34px; width: auto; opacity: .9; }
