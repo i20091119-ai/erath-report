@@ -8,11 +8,19 @@
 구성
   1) 규칙 엔진  : 두 게임의 기물 이동, 장군·외통, 빅장, 한수쉼, 반복·수 제한 판정
   2) AI         : 알파-베타 탐색 (쉬움 / 보통 / 어려움)
-  3) 화면(tkinter): 판, 대국 설정, 기보, 기물별 규칙 비교 설명
+  3) 온라인     : 웹소켓으로 대전 서버에 접속 (웹판과 같은 서버 — 웹판 사용자와도 대국 가능)
+  4) 화면(tkinter): 판, 대국 설정, 기보, 기물별 규칙 비교 설명
 
 좌표: 9열 × 10행, 칸 번호 = 행 × 9 + 열. side 0 = 아래쪽(먼저 두는 쪽), side 1 = 위쪽.
 """
+import base64
+import json
+import os
 import random
+import socket
+import ssl
+import struct
+import threading
 import time
 
 # =============================================================================
@@ -530,7 +538,106 @@ def best_move(st, level=2, budget=None):
 
 
 # =============================================================================
-# 3. 화면 (tkinter)
+# 3. 온라인: 웹소켓 클라이언트 (표준 라이브러리만 사용)
+# =============================================================================
+SERVER = os.environ.get('JGXQ_SERVER', 'wss://janggi-relay.gnmc-swteacher.workers.dev')
+PID = base64.b16encode(os.urandom(12)).decode().lower()  # 재접속 때 "같은 사람"임을 알리는 임의의 값
+ROOM_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+
+class WebSocket:
+    """최소한의 웹소켓 클라이언트 (RFC 6455). 글자 메시지 송수신과 ping 응답만 한다."""
+
+    def __init__(self, url, timeout=10):
+        secure = url.startswith('wss://')
+        rest = url.split('://', 1)[1]
+        hostport, _, path = rest.partition('/')
+        host, _, port = hostport.partition(':')
+        port = int(port) if port else (443 if secure else 80)
+        sock = socket.create_connection((host, port), timeout)
+        if secure:
+            sock = ssl.create_default_context().wrap_socket(sock, server_hostname=host)
+        key = base64.b64encode(os.urandom(16)).decode()
+        req = ('GET /%s HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+               'Sec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n') % (path, hostport, key)
+        sock.sendall(req.encode())
+        buf = b''
+        while b'\r\n\r\n' not in buf:
+            chunk = sock.recv(4096)
+            if not chunk:
+                raise ConnectionError('서버가 연결을 닫았습니다')
+            buf += chunk
+        head, _, self.buf = buf.partition(b'\r\n\r\n')
+        if b' 101 ' not in head.split(b'\r\n', 1)[0]:
+            raise ConnectionError('웹소켓 연결이 거절되었습니다: ' + head.split(b'\r\n', 1)[0].decode('latin1'))
+        sock.settimeout(None)
+        self.sock = sock
+        self.lock = threading.Lock()
+        self.open = True
+
+    def _frame(self, opcode, payload):
+        n = len(payload)
+        head = bytes([0x80 | opcode])
+        if n < 126:
+            head += bytes([0x80 | n])
+        elif n < 65536:
+            head += bytes([0x80 | 126]) + struct.pack('>H', n)
+        else:
+            head += bytes([0x80 | 127]) + struct.pack('>Q', n)
+        mask = os.urandom(4)  # 클라이언트가 보내는 내용은 반드시 마스크를 씌운다
+        body = bytes(c ^ mask[i % 4] for i, c in enumerate(payload))
+        with self.lock:
+            self.sock.sendall(head + mask + body)
+
+    def send(self, text):
+        self._frame(1, text.encode('utf-8'))
+
+    def _read(self, n):
+        while len(self.buf) < n:
+            chunk = self.sock.recv(4096)
+            if not chunk:
+                raise ConnectionError('연결이 끊어졌습니다')
+            self.buf += chunk
+        out, self.buf = self.buf[:n], self.buf[n:]
+        return out
+
+    def recv(self):
+        """다음 글자 메시지를 돌려준다. 연결이 닫히면 None."""
+        parts = []
+        while True:
+            b1, b2 = self._read(2)
+            opcode, n = b1 & 0x0F, b2 & 0x7F
+            if n == 126:
+                n = struct.unpack('>H', self._read(2))[0]
+            elif n == 127:
+                n = struct.unpack('>Q', self._read(8))[0]
+            mask = self._read(4) if b2 & 0x80 else None
+            data = self._read(n)
+            if mask:
+                data = bytes(c ^ mask[i % 4] for i, c in enumerate(data))
+            if opcode == 8:      # 닫기
+                self.open = False
+                return None
+            if opcode == 9:      # ping → pong
+                self._frame(10, data)
+                continue
+            if opcode == 10:     # pong
+                continue
+            parts.append(data)
+            if b1 & 0x80:        # 마지막 조각
+                return b''.join(parts).decode('utf-8', 'replace')
+
+    def close(self):
+        self.open = False
+        for end in (lambda: self.sock.shutdown(socket.SHUT_RDWR), self.sock.close):  # shutdown 으로 읽는 쪽 스레드도 깨운다
+            try:
+                end()
+            except OSError:
+                pass
+
+
+# =============================================================================
+# 4. 화면 (tkinter)
 # =============================================================================
 GLYPH = {
     'xq': [{'K': '帥', 'A': '仕', 'E': '相', 'H': '馬', 'R': '車', 'C': '炮', 'P': '兵'},
@@ -588,6 +695,9 @@ REASON = {
     'movelimit': '%d수를 넘겨 점수로 승부를 가렸습니다.' % JG_MOVE_LIMIT,
     'nocapture': '%d수 동안 잡은 기물이 없어 무승부가 되었습니다.' % XQ_QUIET_LIMIT,
     'resign': '기권으로 대국이 끝났습니다.',
+    'left': '상대가 나가서 대국이 끝났습니다.',
+    'time': '제한 시간이 다 되었습니다.',
+    'agreed': '서로 합의해서 무승부로 끝났습니다.',
 }
 CELL, PAD = 58, 40
 BW, BH = 8 * CELL + 2 * PAD, 9 * CELL + 2 * PAD
@@ -619,6 +729,8 @@ def run_app(hook=None):
             self.thinking = False
             self.gen = 0
             self.q = queue.Queue()
+            self.net = None       # 온라인 방 상태 (없으면 None)
+            self.net_gen = 0
 
             self.cv = tk.Canvas(root, width=BW, height=BH, highlightthickness=0, bg='#3a220c')
             self.cv.grid(row=0, column=0, padx=12, pady=12)
@@ -659,15 +771,18 @@ def run_app(hook=None):
 
             self.start()
             root.after(60, self.poll)
+            root.after(25000, self.keepalive)
             root.after(250, self.new_dialog)  # 켜자마자 어떤 게임을 둘지 고르게 한다
 
         # ---------------- 대국 진행 ----------------
         def start(self):
             c = self.cfg
+            if c['mode'] != 'online':
+                self.net_leave()
             self.gen += 1
             self.st = Game(c['game'], list(c['forms']))
             self.sel, self.targets, self.hint, self.thinking = None, [], None, False
-            self.flipped = c['mode'] == 'ai' and c['side'] == 1
+            self.flipped = c['mode'] != 'local' and c['side'] == 1
             self.tip.config(text='기물을 눌러 보세요.\n갈 수 있는 자리가 표시되고, 이 기물이 두 게임에서 어떻게 다른지 알려 줍니다.')
             self.refresh()
             if c['mode'] == 'ai' and c['side'] == 1:
@@ -675,6 +790,8 @@ def run_app(hook=None):
 
         def my_turn(self):
             st, c = self.st, self.cfg
+            if c['mode'] == 'online' and not (self.net and self.net['started'] and self.net['ws'] and self.net['ws'].open):
+                return False
             return st.status == 'play' and not self.thinking and (c['mode'] == 'local' or st.turn == c['side'])
 
         def on_click(self, ev):
@@ -700,12 +817,14 @@ def run_app(hook=None):
                 self.sel, self.targets = None, []
             self.draw()
 
-        def do_move(self, mv):
+        def do_move(self, mv, remote=False):
             st = self.st
             rec = st.play(mv)
             if rec is None:
                 return
             self.sel, self.targets, self.hint = None, [], None
+            if self.cfg['mode'] == 'online' and not remote:
+                self.net_send({'t': 'move', 'mv': {'pass': True} if mv is None else {'from': mv[0], 'to': mv[1], 'pass': False}, 'clk': None})
             if rec['check'] or (st.game == 'jg' and st.bikjang_by == rec['side'] and st.status == 'play'):
                 self.root.bell()
             self.refresh()
@@ -721,12 +840,17 @@ def run_app(hook=None):
 
         def _think(self, level, kind):
             gen, snap = self.gen, self.st.copy()  # 화면이 멈추지 않도록 복사본으로 다른 스레드에서 계산
-            threading.Thread(target=lambda: self.q.put((gen, kind, len(snap.moves), best_move(snap, level))), daemon=True).start()
+            threading.Thread(target=lambda: self.q.put(('ai', gen, kind, len(snap.moves), best_move(snap, level))), daemon=True).start()
 
         def poll(self):
             try:
                 while True:
-                    gen, kind, n, mv = self.q.get_nowait()
+                    item = self.q.get_nowait()
+                    if item[0] == 'net':
+                        if item[1] == self.net_gen:
+                            self.on_net(item[2])
+                        continue
+                    _, gen, kind, n, mv = item
                     if gen != self.gen or n != len(self.st.moves) or self.st.status != 'play':
                         continue
                     if kind == 'move':
@@ -744,7 +868,7 @@ def run_app(hook=None):
 
         def undo(self):
             st, c = self.st, self.cfg
-            if self.thinking or not st.moves:
+            if self.thinking or not st.moves or c['mode'] == 'online':
                 return
             n = 2 if c['mode'] == 'ai' and st.moves[-1]['side'] != c['side'] and len(st.moves) >= 2 else 1
             st.undo(n)
@@ -775,6 +899,8 @@ def run_app(hook=None):
             loser = st.turn if c['mode'] == 'local' else c['side']
             self.gen += 1
             self.thinking = False
+            if c['mode'] == 'online':
+                self.net_send({'t': 'end', 'winner': 1 - loser, 'reason': 'resign'})
             st._end(1 - loser, 'resign')
             self.refresh()
             self.show_over()
@@ -788,6 +914,187 @@ def run_app(hook=None):
                 sc = score(st.board)
                 extra = '\n초 %s점 : 한 %s점' % (sc[0], sc[1])
             messagebox.showinfo('대국 종료', head + '\n\n' + REASON.get(st.reason, '') + extra)
+            net = self.net
+            if self.cfg['mode'] == 'online' and net and net['started'] and net['peer'] and self.st is st:
+                if messagebox.askyesno('한 판 더', '같은 상대와 한 판 더 둘까요?') and self.net is net and self.st is st:
+                    if net['role'] == 'host':
+                        self.net_begin(dict(net['start']), announce=True)
+                    else:
+                        self.net_send({'t': 'rematch'})
+                        self.sub.config(text='방장에게 한 판 더를 요청했습니다.')
+
+        # ---------------- 온라인 ----------------
+        def net_send(self, d):
+            ws = self.net and self.net['ws']
+            if ws and ws.open:
+                try:
+                    ws.send(json.dumps(d))
+                except OSError:  # 보내다 실패하면 끊긴 것으로 보고 다시 연결한다
+                    ws.close()
+                    self.q.put(('net', self.net_gen, {'t': '_closed'}))
+
+        def keepalive(self):
+            self.net_send({'t': '_ping'})
+            self.root.after(25000, self.keepalive)
+
+        def net_leave(self):
+            net = self.net
+            if not net:
+                return
+            if net['started'] and self.cfg['mode'] == 'online' and self.st.status == 'play':
+                self.net_send({'t': 'end', 'winner': 1 - self.cfg['side'], 'reason': 'left'})
+            self.net = None
+            self.net_gen += 1
+            if net['ws']:
+                net['ws'].close()
+
+        def net_open(self, code, role, want):
+            """방에 접속한다. want = 방장이 고른 설정(게임·진영·상차림) 또는 손님의 상차림."""
+            self.net_leave()
+            self.net = {'code': code, 'role': role, 'ws': None, 'peer': False, 'started': False, 'tries': 0, 'want': want, 'start': None, 'joined': False}
+            self.cfg = dict(self.cfg, mode='online')
+            self.net_connect()
+            self.refresh()
+
+        def net_connect(self):
+            self.net_gen += 1
+            gen, net = self.net_gen, self.net
+            url = '%s/room/%s?role=%s&pid=%s' % (SERVER, net['code'], net['role'], PID)
+
+            def run():
+                try:
+                    ws = WebSocket(url)
+                except Exception as e:  # 연결 실패(인터넷 없음, 인증서 문제 등)
+                    self.q.put(('net', gen, {'t': '_fail', 'why': str(e)}))
+                    return
+                self.q.put(('net', gen, {'t': '_open', 'ws': ws}))
+                while True:
+                    try:
+                        m = ws.recv()
+                    except Exception:
+                        m = None
+                    if m is None:
+                        self.q.put(('net', gen, {'t': '_closed'}))
+                        return
+                    try:
+                        d = json.loads(m)
+                    except ValueError:
+                        continue
+                    if isinstance(d, dict):
+                        self.q.put(('net', gen, d))
+
+            threading.Thread(target=run, daemon=True).start()
+
+        def net_begin(self, start, announce=False):
+            """시작 정보로 새 판을 연다. announce=True 이면(방장) 상대에게도 알린다."""
+            net = self.net
+            if start.get('game') not in ('jg', 'xq') or start.get('hostSide') not in (0, 1):
+                return
+            forms = start.get('formations') or []
+            forms = [f if f in FORMATIONS else 'EHEH' for f in (list(forms) + ['EHEH', 'EHEH'])[:2]]
+            start = {'t': 'start', 'game': start['game'], 'formations': forms, 'hostSide': start['hostSide'], 'clock': 0}
+            net['start'], net['started'] = start, True
+            if announce:
+                self.net_send(start)
+            side = start['hostSide'] if net['role'] == 'host' else 1 - start['hostSide']
+            self.cfg = {'game': start['game'], 'mode': 'online', 'level': 2, 'side': side, 'forms': forms}
+            self.start()
+
+        @staticmethod
+        def net_move(st, m):
+            """받은 수가 규칙에 맞는지 확인한다. (맞는지, 수) 를 돌려준다."""
+            if not isinstance(m, dict) or st.status != 'play':
+                return False, None
+            if m.get('pass'):
+                return st.can_pass(), None
+            f, to = m.get('from'), m.get('to')
+            if not (isinstance(f, int) and 0 <= f < 90 and st.board[f] is not None):
+                return False, None
+            return (f, to) in st.legal(f), (f, to)
+
+        def on_net(self, d):
+            net, t = self.net, d.get('t')
+            if not net:
+                return
+            st, me = self.st, self.cfg['side']
+            if t == '_open':
+                net['ws'] = d['ws']
+            elif t in ('_fail', '_closed'):
+                if net['ws']:
+                    net['ws'].close()
+                net['ws'] = None
+                net['tries'] += 1
+                if net['tries'] > (10 if net['joined'] else 2):
+                    self.net = None
+                    self.net_gen += 1
+                    self.refresh()
+                    messagebox.showwarning('온라인', '대전 서버에 연결할 수 없습니다.\n' + str(d.get('why', '')))
+                    return
+                self.root.after(min(1500 * net['tries'], 5000), lambda: self.net is net and self.net_connect())
+                self.refresh()
+            elif t == '_err':
+                self.net = None
+                self.net_gen += 1
+                self.refresh()
+                messagebox.showwarning('온라인', {'noroom': '그 코드의 방을 찾지 못했습니다.', 'taken': '방 코드가 겹쳤습니다. 다시 만들어 주세요.'}.get(d.get('why'), '연결 오류'))
+            elif t == '_hello':
+                if d.get('as') == 'watch':
+                    self.net_leave()
+                    self.refresh()
+                    messagebox.showinfo('온라인', '방이 이미 가득 찼습니다. (관전은 웹판에서 할 수 있습니다)')
+                    return
+                net['joined'], net['tries'], net['peer'] = True, 0, bool(d.get('peer'))
+                sync = d.get('sync')
+                if sync and isinstance(sync.get('start'), dict):  # 서버가 기억하던 판을 그대로 다시 만든다
+                    self.net_begin(sync['start'])
+                    for m in sync.get('moves') or []:
+                        ok, mv = self.net_move(self.st, m)
+                        if not ok:
+                            break
+                        self.st.play(mv)
+                    over = sync.get('over')
+                    if over and self.st.status == 'play':
+                        self.st._end(over.get('winner') if over.get('winner') in (0, 1) else None, str(over.get('reason')))
+                elif net['role'] == 'host' and net['peer']:
+                    self.net_send({'t': 'init', 'game': net['want']['game'], 'hostSide': net['want']['side']})
+                self.refresh()
+            elif t in ('_joined', '_back'):
+                net['peer'] = True
+                if net['role'] == 'host' and not net['started']:
+                    self.net_send({'t': 'init', 'game': net['want']['game'], 'hostSide': net['want']['side']})
+                self.refresh()
+            elif t in ('_away', '_left'):
+                net['peer'] = False
+                self.refresh()
+            elif t == 'init' and net['role'] == 'guest' and not net['started']:
+                self.net_send({'t': 'ready', 'formation': net['want']['form'] if d.get('game') == 'jg' else None})
+            elif t == 'ready' and net['role'] == 'host' and not net['started']:
+                w = net['want']
+                forms = [None, None]
+                forms[w['side']] = w['form']
+                forms[1 - w['side']] = d.get('formation') if d.get('formation') in FORMATIONS else 'EHEH'
+                self.net_begin({'game': w['game'], 'formations': forms, 'hostSide': w['side']}, announce=True)
+            elif t == 'start' and net['role'] == 'guest':
+                self.net_begin(d)
+            elif not net['started']:
+                return
+            elif t == 'move' and st.status == 'play' and st.turn != me:
+                ok, mv = self.net_move(st, d.get('mv'))
+                if ok:
+                    self.do_move(mv, remote=True)
+            elif t == 'end' and st.status == 'play' and d.get('reason') in ('resign', 'left', 'time') and d.get('winner') == me:
+                self.gen += 1  # 상대가 스스로 진 경우만 인정한다
+                st._end(me, d['reason'])
+                self.refresh()
+                self.show_over()
+            elif t == 'rematch' and net['role'] == 'host' and st.status == 'over':
+                self.net_begin(dict(net['start']), announce=True)
+            elif t == 'undoReq':
+                self.net_send({'t': 'undoNo'})   # 파이썬 판은 무르기 요청을 받지 않는다
+            elif t == 'drawReq':
+                self.net_send({'t': 'drawNo'})   # 무승부 제안도 받지 않는다
+            elif t == 'chat':
+                self.tip.config(text='상대의 말: ' + str(d.get('text', ''))[:120])
 
         # ---------------- 그리기 ----------------
         def xy(self, i):
@@ -862,7 +1169,9 @@ def run_app(hook=None):
             g = st.game
             P = PLAYER[g]
             self.draw()
-            mode = 'AI 대국 (%s)' % ['', '쉬움', '보통', '어려움'][c['level']] if c['mode'] == 'ai' else '둘이서'
+            net = self.net
+            mode = {'ai': 'AI 대국 (%s)' % ['', '쉬움', '보통', '어려움'][c['level']], 'local': '둘이서',
+                    'online': '온라인' + (' · 방 %s' % net['code'] if net else ' (연결 끊김)')}[c['mode']]
             self.title.config(text='%s · %s' % (GNAME[g], mode))
             if st.status == 'over':
                 self.turn_lbl.config(text='무승부' if st.winner is None else '%s 승리!' % P[st.winner][0])
@@ -876,6 +1185,23 @@ def run_app(hook=None):
                     sub = '빅장! 이번 수에 풀지 않으면 무승부입니다.'
                 elif self.thinking:
                     sub = 'AI가 생각하는 중…'
+                elif c['mode'] == 'online' and net and net['started']:
+                    if not (net['ws'] and net['ws'].open):
+                        sub = '서버에 다시 연결하는 중…'
+                    elif not net['peer']:
+                        sub = '상대가 자리를 비웠습니다. 돌아오기를 기다리는 중…'
+                    elif st.turn != c['side']:
+                        sub = '상대의 수를 기다리는 중…'
+                    else:
+                        sub = '내 차례입니다. (%d번째 수)' % (len(st.moves) + 1)
+            if c['mode'] == 'online' and net and not net['started']:
+                self.turn_lbl.config(text='방 코드  %s' % net['code'])
+                if not net['joined']:
+                    sub = '대전 서버에 연결하는 중…'
+                elif net['role'] == 'host':
+                    sub = '상대에게 이 방 코드를 알려 주세요. 들어오면 바로 시작합니다. (웹판에서도 들어올 수 있습니다)'
+                else:
+                    sub = '방장의 준비를 기다리는 중…'
             self.sub.config(text=sub)
             names = GLYPH if self.label == 'hanja' else HANGUL
             lines = []
@@ -887,8 +1213,8 @@ def run_app(hook=None):
             self.caps.config(text='\n'.join(lines))
             self.btn['한수쉼'].config(state='normal' if g == 'jg' and self.my_turn() and st.can_pass() else 'disabled')
             self.btn['힌트'].config(state='normal' if self.my_turn() else 'disabled')
-            self.btn['무르기'].config(state='normal' if st.moves and not self.thinking else 'disabled')
-            self.btn['기권'].config(state='normal' if st.status == 'play' else 'disabled')
+            self.btn['무르기'].config(state='normal' if st.moves and not self.thinking and c['mode'] != 'online' else 'disabled')
+            self.btn['기권'].config(state='normal' if st.status == 'play' and (c['mode'] != 'online' or (net and net['started'])) else 'disabled')
             self.hist.delete(0, 'end')
             for k, m in enumerate(st.moves):
                 side = P[m['side']][0]
@@ -911,7 +1237,7 @@ def run_app(hook=None):
             win.transient(self.root)
             win.grab_set()
             win.resizable(False, False)
-            v = {'game': tk.StringVar(value=c['game']), 'mode': tk.StringVar(value=c['mode']), 'level': tk.IntVar(value=c['level']),
+            v = {'game': tk.StringVar(value=c['game']), 'mode': tk.StringVar(value='ai' if c['mode'] == 'online' else c['mode']), 'level': tk.IntVar(value=c['level']),
                  'side': tk.IntVar(value=c['side']), 'f0': tk.StringVar(value=c['forms'][0]), 'f1': tk.StringVar(value=c['forms'][1])}
 
             def row(title, var, options):
@@ -922,17 +1248,40 @@ def run_app(hook=None):
                     tk.Radiobutton(f, text=text, variable=var, value=val, font=(FONT, 10)).pack(side='left')
 
             row('게임', v['game'], [('jg', '한국 장기'), ('xq', '중국 상치')])
-            row('방식', v['mode'], [('ai', 'AI와 대국'), ('local', '둘이서 (한 컴퓨터)')])
+            row('방식', v['mode'], [('ai', 'AI와 대국'), ('local', '둘이서 (한 컴퓨터)'), ('host', '온라인 방 만들기'), ('join', '온라인 방 참가')])
+            f = tk.Frame(win)
+            f.pack(fill='x', padx=14, pady=(4, 0))
+            tk.Label(f, text='참가할 방 코드 (6자리):', font=(FONT, 10)).pack(side='left')
+            code = tk.Entry(f, width=10, font=(FONT, 11, 'bold'))
+            code.pack(side='left', padx=6)
             row('AI 난이도', v['level'], [(1, '쉬움'), (2, '보통'), (3, '어려움')])
-            row('내 진영 (AI 대국)', v['side'], [(0, '먼저 (초 · 홍)'), (1, '나중 (한 · 흑)')])
+            row('내 진영 (AI 대국 · 방 만들기)', v['side'], [(0, '먼저 (초 · 홍)'), (1, '나중 (한 · 흑)')])
             forms = list(FORMATIONS.items())
-            row('장기 상차림 — 아래쪽(초)', v['f0'], forms)
-            row('장기 상차림 — 위쪽(한)', v['f1'], forms)
-            tk.Label(win, text='상차림은 각자 자기 왼쪽부터 마·상을 놓는 순서입니다.', font=(FONT, 9), fg='#666').pack(padx=14, anchor='w')
+            row('장기 상차림 — 나 (둘이서: 초)', v['f0'], forms)
+            row('장기 상차림 — 상대 (AI · 둘이서: 한)', v['f1'], forms)
+            tk.Label(win, text='상차림은 각자 자기 왼쪽부터 마·상을 놓는 순서입니다.\n온라인 방 참가에서는 게임과 진영을 방장이 정합니다.',
+                     font=(FONT, 9), fg='#666', justify='left').pack(padx=14, anchor='w')
 
             def go():
-                self.cfg = {'game': v['game'].get(), 'mode': v['mode'].get(), 'level': v['level'].get(), 'side': v['side'].get(),
-                            'forms': [v['f0'].get(), v['f1'].get()]}
+                mode, side, f0, f1 = v['mode'].get(), v['side'].get(), v['f0'].get(), v['f1'].get()
+                if mode == 'join':
+                    room = code.get().strip().upper()
+                    if len(room) != 6 or any(ch not in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' for ch in room):
+                        messagebox.showwarning('온라인', '방 코드 6자리를 입력해 주세요.', parent=win)
+                        return
+                    win.destroy()
+                    self.net_open(room, 'guest', {'form': f0})
+                    return
+                if mode == 'host':
+                    win.destroy()
+                    room = ''.join(random.choice(ROOM_ABC) for _ in range(6))
+                    self.net_open(room, 'host', {'game': v['game'].get(), 'side': side, 'form': f0})
+                    return
+                if mode == 'local':
+                    side = 0
+                forms2 = [None, None]
+                forms2[side], forms2[1 - side] = f0, f1  # 내 상차림은 내 진영 쪽에
+                self.cfg = {'game': v['game'].get(), 'mode': mode, 'level': v['level'].get(), 'side': side, 'forms': forms2}
                 win.destroy()
                 self.start()
 
