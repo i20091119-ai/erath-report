@@ -793,10 +793,14 @@ def run_app(hook=None):
             box.pack(fill='both', expand=True)
             sb = tk.Scrollbar(box)
             sb.pack(side='right', fill='y')
-            self.hist = tk.Listbox(box, height=7, width=34, font=(FONT, 10), yscrollcommand=sb.set, activestyle='none',
+            self.hist = tk.Listbox(box, height=6, width=34, font=(FONT, 10), yscrollcommand=sb.set, activestyle='none',
                                    bg=PANEL, fg=TEXT, selectbackground='#3a3f66', highlightthickness=0, borderwidth=0)
             self.hist.pack(side='left', fill='both', expand=True)
             sb.config(command=self.hist.yview)
+            if 'cnue' in self.img:  # 오른쪽 아래 구석: 진주교육대학교
+                tk.Label(side, image=self.img['cnue'], bg='#fffaf2', padx=8, pady=4).pack(anchor='e', pady=(8, 0))
+            else:
+                tk.Label(side, text='진주교육대학교', bg=BG, fg=MUTE, font=(FONT, 9)).pack(anchor='e', pady=(8, 0))
 
             self.start()
             root.after(60, self.poll)

@@ -82,6 +82,11 @@ def main():
     for n in ('board', 'kingpos', 'guard', 'elephant', 'cannon', 'soldier', 'palace', 'facing', 'pass', 'formation', 'first', 'shape', 'score'):
         small('diff-%s.png' % n, 'diff-%s.png' % n, 34)
     small('icon-192.png', 'icon.png', 64)
+    # 진주교육대학교 시그니처 (밝은 바탕 위에 올려 쓴다)
+    logo = Image.open(os.path.join(HERE, '..', '..', 'assets', 'logo', 'cnue-signature.png')).convert('RGBA')
+    logo = logo.resize((150, round(logo.size[1] * 150 / logo.size[0])), Image.LANCZOS)
+    bg = Image.new('RGBA', logo.size, (255, 250, 242, 255))
+    Image.alpha_composite(bg, logo).convert('RGB').save(os.path.join(OUT, 'cnue.png'), optimize=True)
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))
     print('%d files, %d KB' % (len(os.listdir(OUT)), total // 1024))
 
