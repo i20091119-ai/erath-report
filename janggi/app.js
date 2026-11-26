@@ -249,9 +249,9 @@
     $('#chatLog').innerHTML = '';
     $('#tip').innerHTML = '<b>기물을 눌러 보세요</b><p>갈 수 있는 자리가 표시되고, 이 기물이 두 게임에서 어떻게 다른지 알려 드려요.</p>';
     closeModal(); go('game'); refresh();
-    if (cfg.mode === 'ai' && cfg.mySide === 1) aiTurn();
+    if (cfg.mode === 'ai' && cfg.mySide === 1 && !cfg.resumed) aiTurn();
   }
-  const myTurn = () => G.st.status === 'play' && !G.thinking && G.review == null && (G.cfg.mode === 'local' || G.st.turn === G.cfg.mySide) &&
+  const myTurn = () => G.st.status === 'play' && !G.thinking && G.review == null && !G.cfg.replay && (G.cfg.mode === 'local' || G.st.turn === G.cfg.mySide) &&
     !(G.cfg.mode === 'online' && (G.cfg.watch || !Net.open()));
 
   function onPoint(i) {
@@ -270,7 +270,7 @@
   function doMove(mv, remote) {
     const st = G.st, rec = E.play(st, mv);
     if (!rec) return;
-    G.sel = null; G.targets = []; G.hint = null;
+    G.sel = null; G.targets = []; G.hint = null; G.review = null;
     if (G.cfg.mode === 'online' && !remote) Net.send({ t: 'move', mv: { from: mv.from, to: mv.to, pass: !!mv.pass }, clk: G.clk });
     if (rec.check) { sfx.check(); shout(st.game === 'jg' ? '장군!' : '將軍!'); }
     else if (rec.cap) sfx.cap(); else sfx.move();
@@ -326,8 +326,26 @@
 
   function shout(txt) { const el = $('#shout'); el.textContent = txt; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
 
+  // 복기 중이면 그 시점의 국면을, 아니면 지금 국면을 돌려준다
+  function viewSt() {
+    const live = G.st;
+    if (G.review == null) return live;
+    if (!G.rv || G.rv.src !== live || G.rv.k !== G.review || G.rv.n !== live.moves.length) {
+      const s = E.create(live.game, live.formations, live.opts);
+      for (let i = 0; i < G.review; i++) E.play(s, live.moves[i]);
+      G.rv = { src: live, k: G.review, n: live.moves.length, s };
+    }
+    return G.rv.s;
+  }
+  function setReview(k) {
+    const n = G.st.moves.length;
+    k = Math.max(0, Math.min(n, k));
+    G.review = k === n && !G.cfg.replay ? null : k;
+    G.sel = null; G.targets = []; G.hint = null;
+    refresh();
+  }
   function paint() {
-    const st = G.st, last = st.moves[st.moves.length - 1];
+    const st = viewSt(), last = st.moves[st.moves.length - 1];
     G.view.update(st.board, {
       sel: G.sel, targets: G.targets, hint: G.hint,
       last: last && !last.pass ? last : null,
@@ -348,19 +366,20 @@
   function refresh() {
     const st = G.st, g = st.game, c = G.cfg, P = PLAYER[g];
     paint();
-    const sc = g === 'jg' ? E.score(st.board) : null;
+    const vs = viewSt();
+    const sc = g === 'jg' ? E.score(vs.board) : null;
     const bar = (el, side) => {
       el.className = 'pbar' + (st.status === 'play' && st.turn === side ? ' act' : '');
       el.style.color = P[side].c;
       const av = c.mode === 'ai' && side !== c.mySide ? 'ai' : AVATAR[g][side];
       el.innerHTML = `<img class="av" src="./img/av-${av}.png" alt="${P[side].h}"><div class="nm" style="color:var(--text)">${P[side].n}<small>${roleName(side)}</small></div>` +
-        `<div class="caps">${st.captured[side].map(p => `<span class="cp" style="color:${INK[g][p.s]}">${GLYPH[prefs.label][g][p.s][p.t]}</span>`).join('')}</div>` +
+        `<div class="caps">${vs.captured[side].map(p => `<span class="cp" style="color:${INK[g][p.s]}">${GLYPH[prefs.label][g][p.s][p.t]}</span>`).join('')}</div>` +
         (sc ? `<div class="pts">${sc[side]}점</div>` : '') + (G.clk ? `<div class="clk${G.clk[side] < 30000 ? ' low' : ''}" data-side="${side}">${fmtClk(G.clk[side])}</div>` : '');
     };
     const top = G.view.flipped ? 0 : 1;
     bar($('#pTop'), top); bar($('#pBot'), 1 - top);
 
-    $('#gName').textContent = `${GNAME[g]} · ${{ ai: 'AI 대국', local: '둘이서', online: '온라인' }[c.mode]}`;
+    $('#gName').textContent = `${GNAME[g]} · ${c.replay ? '기보 보기' : { ai: 'AI 대국', local: '둘이서', online: '온라인' }[c.mode]}`;
     let turn = `${P[st.turn].n}(${P[st.turn].h}) 차례`, sub = `${st.moves.length + 1}번째 수`;
     if (st.status === 'over') { turn = st.winner == null ? '무승부' : `${P[st.winner].n} 승리!`; sub = '새 판을 눌러 다시 둘 수 있어요'; }
     else if (st.check) sub = g === 'jg' ? '장군! 왕을 지켜야 해요 (멍군)' : '장군(將軍)! 왕을 지켜야 해요';
@@ -370,6 +389,7 @@
     else if (c.watch) sub = '관전 중이에요';
     else if (c.mode === 'online' && !Net.peer) sub = '상대가 자리를 비웠어요. 돌아오기를 기다리는 중…';
     else if (c.mode === 'online' && st.turn !== c.mySide) sub = '상대의 수를 기다리는 중…';
+    if (G.review != null) sub = `복기 중 · ${G.review} / ${st.moves.length}수 — ▶ 로 넘겨 보세요`;
     const playing = st.status === 'play';
     $('#turnTxt').textContent = turn; $('#turnTxt').style.color = P[st.status === 'over' && st.winner != null ? st.winner : st.turn].c;
     $('#subTxt').textContent = sub;
@@ -382,12 +402,79 @@
     $('#btnPass').hidden = g !== 'jg'; $('#btnPass').disabled = !myTurn() || st.check;
     $('#btnResign').disabled = !playing || !!c.watch;
     $('#btnAgain').disabled = !!c.watch;
+    if (c.replay) for (const id of ['btnUndo', 'btnHint', 'btnPass', 'btnResign']) $('#' + id).disabled = true;
+    $('#btnSave').disabled = !st.moves.length;
+    const shown = G.review == null ? st.moves.length : G.review;
 
     $('#hist').innerHTML = st.moves.map((m, k) => {
       const txt = m.pass ? '한수쉼' : `${GLYPH[prefs.label][g][m.side][m.piece.t]} ${fileRank(m.from)}→${fileRank(m.to)}${m.cap ? ' ×' + GLYPH[prefs.label][g][m.cap.s][m.cap.t] : ''}${m.check ? ' !' : ''}`;
-      return `<li style="color:${P[m.side].c}"><i>${k + 1}.</i>${txt}</li>`;
+      return `<li class="${k + 1 === shown ? 'cur' : ''}" data-k="${k + 1}" style="color:${P[m.side].c}"><i>${k + 1}.</i>${txt}</li>`;
     }).join('');
-    $('#hist').scrollTop = 1e6;
+    const cur = $('#hist .cur');
+    if (cur) $('#hist').scrollTop = cur.offsetTop - $('#hist').offsetTop - 70; else $('#hist').scrollTop = 0;
+    autosave();
+  }
+
+  /* ---------- 기보: 저장 · 불러오기 · 이어 두기 ---------- */
+  const plainMoves = st => st.moves.map(m => m.pass ? { pass: true } : { from: m.from, to: m.to });
+  function kifu() {
+    const st = G.st, c = G.cfg;
+    return { app: 'jgxq', v: 1, game: st.game, formations: st.formations, moves: plainMoves(st), date: new Date().toISOString(),
+      result: st.status === 'over' ? { winner: st.winner, reason: st.reason } : null, mode: c.mode };
+  }
+  function saveKifu() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    const name = `${G.st.game === 'jg' ? 'janggi' : 'xiangqi'}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(kifu())], { type: 'application/json' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast('기보를 저장했어요: ' + name);
+  }
+  // 저장된 기록으로 판을 다시 만든다. 규칙에 맞지 않는 수가 나오면 거기서 멈춘다.
+  function restore(k, cfg) {
+    if (!k || (k.game !== 'jg' && k.game !== 'xq') || !Array.isArray(k.moves) || k.moves.length > 2000) return false;
+    const f = Array.isArray(k.formations) ? k.formations.map(x => E.FORMATIONS[x] ? x : 'EHEH').slice(0, 2) : [];
+    startGame(Object.assign({ game: k.game, formations: f }, cfg));
+    for (const m of k.moves) {
+      const st = G.st, mv = m && m.pass ? { pass: true } : { from: m.from | 0, to: m.to | 0 };
+      const ok = mv.pass ? st.game === 'jg' && !st.check : E.legalMoves(st.board, st.game, st.turn, mv.from).some(x => x.to === mv.to);
+      if (st.status !== 'play' || !ok || !E.play(st, mv)) break;
+    }
+    return true;
+  }
+  function loadKifu(text) {
+    let k = null;
+    try { k = JSON.parse(text); } catch (e) { /* 아래에서 처리 */ }
+    if (!k || k.app !== 'jgxq' || !restore(k, { mode: 'local', mySide: 0, replay: true })) return toast('이 앱에서 저장한 기보 파일이 아니에요');
+    const st = G.st, r = k.result;
+    if (r && st.status === 'play' && typeof r.reason === 'string') { st.status = 'over'; st.winner = r.winner === 0 || r.winner === 1 ? r.winner : null; st.reason = r.reason.slice(0, 20); }
+    G.review = 0; refresh();
+    toast(`기보를 불러왔어요 (${st.moves.length}수). ▶ 를 눌러 넘겨 보세요`);
+  }
+  function autosave() {
+    const c = G.cfg, st = G.st;
+    if (!c || c.replay || c.mode === 'online') return;
+    try {
+      if (st.status !== 'play' || !st.moves.length) localStorage.removeItem('jgxq-save');
+      else localStorage.setItem('jgxq-save', JSON.stringify({ cfg: c, game: st.game, formations: st.formations, moves: plainMoves(st), clk: G.clk }));
+    } catch (e) { /* 저장소 없음 */ }
+    showResume();
+  }
+  function readSave() { try { return JSON.parse(localStorage.getItem('jgxq-save')); } catch (e) { return null; } }
+  function showResume() {
+    const s = readSave(), el = $('#resume');
+    el.hidden = !s;
+    if (s) $('#resumeTxt').textContent = `두던 판이 있어요 — ${GNAME[s.game] || ''} · ${s.cfg && s.cfg.mode === 'ai' ? 'AI 대국' : '둘이서'} · ${s.moves.length}수`;
+  }
+  function resume() {
+    const s = readSave();
+    if (!s || !s.cfg || (s.cfg.mode !== 'ai' && s.cfg.mode !== 'local')) return;
+    const c = s.cfg, cfg = { mode: c.mode, mySide: c.mySide === 1 ? 1 : 0, level: [1, 2, 3].includes(c.level) ? c.level : 2, clock: +c.clock || 0, resumed: true };
+    if (!restore(s, cfg)) return;
+    if (G.clk && Array.isArray(s.clk)) { G.clk = s.clk.slice(0, 2).map(Number); G.lastTick = Date.now(); }
+    refresh();
+    if (cfg.mode === 'ai' && G.st.status === 'play' && G.st.turn !== cfg.mySide) aiTurn();
   }
 
   function showOver() {
@@ -420,7 +507,8 @@
   }
   function rematch() {
     const c = G.cfg;
-    if (c.mode !== 'online') return startGame(c);
+    if (c.replay) return go('home');
+    if (c.mode !== 'online') return startGame(Object.assign({}, c, { resumed: false }));
     if (c.watch) return;
     if (!Net.alive()) return toast('상대와 연결이 끊어져 있어요');
     if (Net.role === 'host') { const start = { t: 'start', game: c.game, formations: c.formations, hostSide: c.mySide, clock: c.clock || 0 }; Net.send(start); Net.begin(start); }
@@ -746,9 +834,26 @@
       if (st) openSetup(st.closest('.pick').dataset.game, st.dataset.start);
     });
     $('#btnJoin').onclick = () => Net.joinRoom($('#joinCode').value);
+    $('#btnSave').onclick = saveKifu;
+    $('.rv').onclick = e => {
+      const b = e.target.closest('[data-rv]'); if (!b || !G.st) return;
+      const cur = G.review == null ? G.st.moves.length : G.review;
+      setReview({ first: 0, prev: cur - 1, next: cur + 1, last: G.st.moves.length }[b.dataset.rv]);
+    };
+    $('#hist').onclick = e => { const li = e.target.closest('li'); if (li) setReview(+li.dataset.k); };
+    $('#btnLoad').onclick = () => $('#kifuFile').click();
+    $('#kifuFile').onchange = e => {
+      const f = e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      if (f.size > 500000) return toast('파일이 너무 커요');
+      f.text().then(loadKifu);
+    };
+    $('#btnResume').onclick = resume;
+    $('#btnForget').onclick = () => { try { localStorage.removeItem('jgxq-save'); } catch (e) { /* 무시 */ } showResume(); };
+    showResume();
     $('#joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') Net.joinRoom($('#joinCode').value); });
     const syncTools = () => { $('#btnLabel').textContent = prefs.label === 'hanja' ? '漢' : '한'; $('#btnSound').innerHTML = IC(prefs.sound ? 'sound' : 'mute'); };
-    $('#btnLabel').onclick = () => { prefs.label = prefs.label === 'hanja' ? 'hangul' : 'hanja'; savePrefs(); syncTools(); if (G.st) refresh(); paintDemo(); toast(prefs.label === 'hanja' ? '한자 표기' : '한글 표기'); };
+    $('#btnLabel').onclick = () => { prefs.label = prefs.label === 'hanja' ? 'hangul' : 'hanja'; savePrefs(); syncTools(); if (G.st) refresh(); paintDemo(); if (API.onLabel) API.onLabel(); toast(prefs.label === 'hanja' ? '한자 표기' : '한글 표기'); };
     $('#btnSound').onclick = () => { prefs.sound = !prefs.sound; savePrefs(); syncTools(); };
     syncTools();
     const room = new URLSearchParams(location.search).get('room');
@@ -756,6 +861,6 @@
     if (room) { $('#joinCode').value = room.toUpperCase().slice(0, 6); Net.joinRoom(room); }
     else if (saved && saved.code) { toast('하던 온라인 대국으로 돌아갑니다'); Net.joinRoom(saved.code); }
   }
+  const API = window.__app = { G, Net, startGame, doMove, onPoint, BoardView, toast, sfx, confetti, loadKifu, kifu };
   init();
-  window.__app = { G, Net, startGame, doMove, onPoint };
 })();
