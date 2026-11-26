@@ -606,12 +606,6 @@
   function init() {
     // 그라디언트는 화면이 숨겨져도 쓰이도록 한 곳에 모아 둔다
     document.body.appendChild(H(`<svg width="0" height="0" style="position:absolute" aria-hidden="true">${DEFS}</svg>`));
-    const fl = $('#floaters'), gl = '將帥車馬包炮象相士卒兵楚漢';
-    for (let k = 0; k < 16; k++) {
-      const s = document.createElement('span'); s.textContent = gl[(Math.random() * gl.length) | 0];
-      s.style.cssText = `left:${Math.random() * 100}%;font-size:${40 + Math.random() * 90}px;animation-duration:${26 + Math.random() * 30}s;animation-delay:${-Math.random() * 50}s`;
-      fl.appendChild(s);
-    }
     initCompare();
     document.addEventListener('click', e => {
       const goBtn = e.target.closest('[data-go]');
