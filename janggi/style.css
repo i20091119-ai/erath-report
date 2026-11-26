@@ -12,11 +12,10 @@ button { cursor: pointer; }
 
 /* 배경 */
 .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: linear-gradient(rgba(11, 13, 23, .55), rgba(11, 13, 23, .82)), url(./img/hero.jpg) center / cover no-repeat, var(--ink); }
-.orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; animation: drift 22s ease-in-out infinite alternate; }
+.orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; }
 .o1 { width: 520px; height: 520px; background: #0f7a57; left: -140px; top: 18%; }
-.o2 { width: 560px; height: 560px; background: #8f1d2c; right: -160px; top: 5%; animation-delay: -8s; }
-.o3 { width: 420px; height: 420px; background: #6b4a12; left: 40%; bottom: -200px; animation-delay: -14s; }
-@keyframes drift { to { transform: translate(60px, -50px) scale(1.15); } }
+.o2 { width: 560px; height: 560px; background: #8f1d2c; right: -160px; top: 5%; }
+.o3 { width: 420px; height: 420px; background: #6b4a12; left: 40%; bottom: -200px; }
 #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }
 
 /* 상단 */
