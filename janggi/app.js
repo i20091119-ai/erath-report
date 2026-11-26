@@ -97,18 +97,20 @@
     let r;
     if (game === 'xq') {
       r = 27;
-      S('circle', { r, fill: 'url(#wood)', stroke: '#6b4416', 'stroke-width': 1.5 }, body);
+      for (const f of ['wood', 'pimg', 'shade']) S('circle', { r, fill: `url(#${f})`, stroke: f === 'shade' ? '#5a3912' : 'none', 'stroke-width': 1.5 }, body);
       S('circle', { r: r - 5, fill: 'none', stroke: ink, 'stroke-width': 1.6, opacity: .8 }, body);
     } else {
       r = p.t === 'K' ? 30 : (p.t === 'A' || p.t === 'P') ? 21.5 : 26.5;
       const pts = [];
       for (let k = 0; k < 8; k++) { const a = (22.5 + 45 * k) * Math.PI / 180; pts.push((r * Math.cos(a)).toFixed(1) + ',' + (r * Math.sin(a)).toFixed(1)); }
-      S('polygon', { points: pts.join(' '), fill: 'url(#wood)', stroke: '#6b4416', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, body);
+      for (const f of ['wood', 'pimg', 'shade']) S('polygon', { points: pts.join(' '), fill: `url(#${f})`, stroke: f === 'shade' ? '#5a3912' : 'none', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, body);
     }
     const t = S('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': (r * 1.02).toFixed(0), fill: ink, y: 1 }, g);
     t.textContent = GLYPH[label][game][p.s][p.t];
   }
   const DEFS = '<defs><radialGradient id="wood" cx="35%" cy="28%" r="85%"><stop offset="0" stop-color="#fff3d6"/><stop offset=".55" stop-color="#ecd09a"/><stop offset="1" stop-color="#c79a54"/></radialGradient>' +
+    '<pattern id="pimg" patternContentUnits="objectBoundingBox" width="1" height="1"><image href="./img/piece.jpg" width="1" height="1" preserveAspectRatio="xMidYMid slice"/></pattern>' +
+    '<radialGradient id="shade" cx="35%" cy="26%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#5a3206" stop-opacity=".42"/></radialGradient>' +
     '<linearGradient id="bdjg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9c887"/><stop offset="1" stop-color="#cfa25a"/></linearGradient>' +
     '<linearGradient id="bdxq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d6a2"/><stop offset="1" stop-color="#d9a868"/></linearGradient></defs>';
 
@@ -138,8 +140,10 @@
     drawBoard() {
       const g = S('g', {}, this.svg), xq = this.game === 'xq', X = c => PAD + c * CELL, Y = r => PAD + r * CELL;
       S('rect', { width: BW, height: BH, fill: `url(#bd${this.game})` }, g);
-      S('rect', { x: PAD - 9, y: PAD - 9, width: 8 * CELL + 18, height: 9 * CELL + 18, fill: 'none', stroke: '#4a2c0c', 'stroke-width': 3.5 }, g);
-      const L = (x1, y1, x2, y2, w) => S('line', { x1, y1, x2, y2, stroke: '#4a2c0c', 'stroke-width': w || 1.6, 'stroke-linecap': 'round' }, g);
+      S('image', { href: `./img/board-${this.game}.jpg`, width: BW, height: BH, preserveAspectRatio: 'xMidYMid slice' }, g); // 없으면 위의 색이 보임
+      S('rect', { x: PAD - 9, y: PAD - 9, width: 8 * CELL + 18, height: 9 * CELL + 18, fill: 'none', stroke: xq ? '#f3dca6' : '#4a2c0c', 'stroke-width': 3.5 }, g);
+      const ink = xq ? '#f3dca6' : '#4a2c0c';
+      const L = (x1, y1, x2, y2, w) => S('line', { x1, y1, x2, y2, stroke: ink, 'stroke-width': w || 1.6, 'stroke-linecap': 'round' }, g);
       for (let r = 0; r < 10; r++) L(X(0), Y(r), X(8), Y(r));
       for (let c = 0; c < 9; c++) {
         if (xq && c > 0 && c < 8) { L(X(c), Y(0), X(c), Y(4)); L(X(c), Y(5), X(c), Y(9)); }
@@ -147,14 +151,14 @@
       }
       for (const pr of [0, 7]) { L(X(3), Y(pr), X(5), Y(pr + 2)); L(X(5), Y(pr), X(3), Y(pr + 2)); }
       if (xq) {
-        const tx = (x, s) => { const t = S('text', { x, y: Y(4.5) + 1, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 30, 'font-family': "'Noto Serif KR',serif", 'font-weight': 700, fill: '#4a2c0c', opacity: .55, 'letter-spacing': 18 }, g); t.textContent = s; };
+        const tx = (x, s) => { const t = S('text', { x, y: Y(4.5) + 1, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': 30, 'font-family': "'Noto Serif KR',serif", 'font-weight': 700, fill: ink, opacity: .7, 'letter-spacing': 18 }, g); t.textContent = s; };
         tx(X(2), '楚河'); tx(X(6), '漢界');
         const marks = [[2, 1], [2, 7], [7, 1], [7, 7]];
         for (let c = 0; c < 9; c += 2) marks.push([3, c], [6, c]);
         for (const [r, c] of marks) for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
           if ((c === 0 && dx < 0) || (c === 8 && dx > 0)) continue;
           const x = X(c) + dx * 6, y = Y(r) + dy * 6;
-          S('path', { d: `M${x + dx * 11} ${y}H${x}V${y + dy * 11}`, fill: 'none', stroke: '#4a2c0c', 'stroke-width': 1.6 }, g);
+          S('path', { d: `M${x + dx * 11} ${y}H${x}V${y + dy * 11}`, fill: 'none', stroke: ink, 'stroke-width': 1.6 }, g);
         }
       }
     }
@@ -420,7 +424,9 @@
   }
 
   /* ---------- 온라인 (PeerJS, 서버 없이 P2P) ---------- */
+  // config.js에 중계 서버 주소(JGXQ_SERVER)가 있으면 웹소켓 서버를, 없으면 PeerJS(P2P)를 쓴다
   const PREFIX = 'jgxq-room-';
+  const SERVER = (window.JGXQ_SERVER || '').trim().replace(/^http/, 'ws').replace(/\/$/, '');
   const Net = {
     peer: null, conn: null, host: false, cfg: null,
     alive() { return !!(this.conn && this.conn.open); },
@@ -453,7 +459,7 @@
       const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       const code = Array.from({ length: 6 }, () => abc[(Math.random() * abc.length) | 0]).join('');
       this.host = true; this.cfg = cfg;
-      const peer = await this.open(PREFIX + code); if (!peer) return;
+      const peer = SERVER ? await this.wsOpen(code, 'host') : await this.open(PREFIX + code); if (!peer) return;
       const link = location.origin + location.pathname + '?room=' + code;
       modal(`<h2>방이 열렸어요</h2><p>친구에게 아래 코드나 링크를 보내 주세요. 친구가 들어오면 바로 시작합니다.</p><div class="code">${code}</div>
         <p><span class="spin"></span>상대를 기다리는 중…</p><div class="foot"><button class="btn" data-a="x">방 닫기</button><button class="btn gold" data-a="cp">🔗 초대 링크 복사</button></div>`).onclick = e => {
@@ -461,7 +467,7 @@
         if (a === 'x') { this.close(); closeModal(); }
         if (a === 'cp') (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('초대 링크를 복사했어요'), () => prompt('이 링크를 복사해 보내 주세요', link));
       };
-      peer.on('connection', conn => {
+      if (!SERVER) peer.on('connection', conn => {
         if (this.alive()) return conn.close();
         this.wire(conn);
         conn.on('open', () => conn.send({ t: 'init', game: cfg.game, hostSide: cfg.mySide }));
@@ -471,8 +477,9 @@
       code = (code || '').trim().toUpperCase();
       if (code.length !== 6) return toast('방 코드 6자리를 입력해 주세요');
       this.host = false;
-      const peer = await this.open(); if (!peer) return;
+      const peer = SERVER ? await this.wsOpen(code, 'guest') : await this.open(); if (!peer) return;
       $('#sheet p').innerHTML = `<span class="spin"></span>방 ${code}에 들어가는 중…`;
+      if (SERVER) return;
       const conn = peer.connect(PREFIX + code, { reliable: true });
       this.wire(conn);
       setTimeout(() => { if (this.peer === peer && !conn.open) { toast('방에 들어가지 못했어요. 코드를 확인해 주세요'); this.close(); closeModal(); } }, 15000);
@@ -480,10 +487,34 @@
     wire(conn) {
       this.conn = conn;
       conn.on('data', d => this.onData(d));
-      conn.on('close', () => {
-        if (this.conn !== conn) return;
-        toast('상대와 연결이 끊어졌어요');
-        if (G.cfg && G.cfg.mode === 'online' && G.st.status === 'play') finish(G.cfg.mySide, 'left');
+      conn.on('close', () => this.lost(conn));
+    },
+    lost(conn) {
+      if (this.conn !== conn) return;
+      toast('상대와 연결이 끊어졌어요');
+      if (G.cfg && G.cfg.mode === 'online' && G.st.status === 'play') finish(G.cfg.mySide, 'left');
+    },
+    // 웹소켓 중계 서버(Cloudflare Worker)로 방에 연결
+    wsOpen(code, role) {
+      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if (e.target.dataset.a) { this.close(); closeModal(); } };
+      this.close();
+      const ws = new WebSocket(`${SERVER}/room/${code}?role=${role}`);
+      const conn = { there: role === 'guest', get open() { return ws.readyState === 1 && this.there; }, send: o => ws.send(JSON.stringify(o)), close: () => ws.close() };
+      const ping = setInterval(() => { if (ws.readyState === 1) ws.send('{"t":"_ping"}'); else if (ws.readyState > 1) clearInterval(ping); }, 25000);
+      this.conn = conn; this.peer = { destroy: () => ws.close() };
+      ws.onmessage = e => {
+        let d; try { d = JSON.parse(e.data); } catch (err) { return; }
+        if (d.t === '_err') {
+          this.conn = null; closeModal();
+          toast({ noroom: '그 코드의 방을 찾지 못했어요', full: '방이 이미 가득 찼어요', taken: '방 코드가 겹쳤어요. 다시 만들어 주세요' }[d.why] || '연결 오류');
+        } else if (d.t === '_joined') { conn.there = true; conn.send({ t: 'init', game: this.cfg.game, hostSide: this.cfg.mySide }); }
+        else if (d.t === '_left') { this.lost(conn); conn.there = false; }
+        else this.onData(d);
+      };
+      ws.onclose = () => this.lost(conn);
+      return new Promise(res => {
+        ws.onopen = () => res(conn);
+        ws.onerror = () => { if (this.conn === conn && ws.readyState !== 1) { this.conn = null; closeModal(); toast('대전 서버에 연결할 수 없어요'); } res(null); };
       });
     },
     onData(d) {
