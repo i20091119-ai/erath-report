@@ -191,13 +191,25 @@
   }
   const keyOf = (b, turn) => b.map(p => p ? p.t + p.s : '.').join('') + turn;
 
-  function create(game, formations) {
+  const JG_MOVE_LIMIT = 200;   // 장기: 200수(각 100수)를 넘기면 점수로 판정
+  const XQ_QUIET_LIMIT = 120;  // 상치: 120수(각 60수) 동안 잡은 기물이 없으면 무승부
+
+  // opts.pieces = [[index, type, side], ...] 를 주면 그 배치로 시작한다(문제·시험용). opts.turn 으로 선을 정한다.
+  function create(game, formations, opts) {
+    opts = opts || {};
+    let board;
+    if (opts.pieces) {
+      board = new Array(90).fill(null);
+      opts.pieces.forEach(([i, t, s], k) => { board[i] = { t, s, id: k }; });
+    } else board = setup(game, formations);
     const st = {
-      game, formations: formations || ['EHEH', 'EHEH'], board: setup(game, formations),
-      turn: 0, moves: [], captured: [[], []], status: 'play', winner: null, reason: null,
-      check: false, bikjangBy: null, passRun: 0, seen: {}
+      game, formations: formations || ['EHEH', 'EHEH'], opts, board,
+      turn: opts.turn || 0, moves: [], captured: [[], []], status: 'play', winner: null, reason: null,
+      check: false, bikjangBy: null, passRun: 0, quiet: 0, seen: {}, keys: []
     };
-    st.seen[keyOf(st.board, 0)] = 1;
+    const k = keyOf(board, st.turn);
+    st.seen[k] = 1; st.keys.push(k);
+    st.check = inCheck(board, game, st.turn);
     return st;
   }
 
@@ -209,6 +221,7 @@
     else {
       st.passRun = 0;
       rec.piece = b[mv.from]; rec.cap = b[mv.to];
+      st.quiet = rec.cap ? 0 : st.quiet + 1;
       if (rec.cap) st.captured[me].push(rec.cap);
       b[mv.to] = b[mv.from]; b[mv.from] = null;
     }
@@ -229,17 +242,25 @@
         end(sc[0] > sc[1] ? 0 : 1, 'score');
       }
     }
+    const k = keyOf(b, st.turn);
+    st.keys.push(k);
+    st.seen[k] = (st.seen[k] || 0) + 1;
+    if (st.status === 'play' && st.seen[k] >= 3) {
+      // 같은 모양 3회: 그 사이 한쪽만 줄곧 장군을 불렀다면 그쪽의 패배, 아니면 무승부
+      const i = st.keys.length - 1, j = st.keys.lastIndexOf(k, i - 1);
+      const cyc = st.moves.slice(j, i), only = [0, 1].map(s => { const ms = cyc.filter(m => m.side === s); return ms.length > 0 && ms.every(m => m.check); });
+      if (only[0] !== only[1]) end(only[0] ? 1 : 0, 'perpetual'); else end(null, 'repetition');
+    }
     if (st.status === 'play') {
-      const k = keyOf(b, st.turn);
-      st.seen[k] = (st.seen[k] || 0) + 1;
-      if (st.seen[k] >= 3) end(null, 'repetition');
+      if (g === 'jg' && st.moves.length >= JG_MOVE_LIMIT) { const sc = score(b); end(sc[0] > sc[1] ? 0 : 1, 'movelimit'); }
+      else if (g === 'xq' && st.quiet >= XQ_QUIET_LIMIT) end(null, 'nocapture');
     }
     return rec;
   }
 
   function undo(st, n) {
     const keep = st.moves.slice(0, Math.max(0, st.moves.length - n));
-    const fresh = create(st.game, st.formations);
+    const fresh = create(st.game, st.formations, st.opts);
     for (const m of keep) play(fresh, m);
     Object.assign(st, fresh);
   }
@@ -307,27 +328,47 @@
     }
     return best;
   }
-  // level 1(쉬움) 2(보통) 3(어려움)
-  function bestMove(st, level) {
+  // 초반 정석 성향: 처음 몇 수는 기물을 전개하는 수에 가산점
+  function bookBonus(g, p, from, to) {
+    const rel = i => { const r = (i / 9) | 0; return p.s === 0 ? r : 9 - r; };
+    const fr = rel(from), tr = rel(to), fc = from % 9, tc = to % 9;
+    if (p.t === 'H' && fr === 9 && tr === 7) return 35;
+    if (p.t === 'C' && tr === 7 && tc === 4) return g === 'xq' ? 40 : 30;
+    if (g === 'xq') {
+      if (p.t === 'P' && (fc === 2 || fc === 6) && tr === fr - 1) return 20;
+      if (p.t === 'E' && fr === 9 && tc === 4) return 15;
+      if (p.t === 'R' && fr === 9 && tr === 8) return 15;
+    } else {
+      if (p.t === 'P' && (fc === 0 || fc === 8) && tr === fr) return 30;
+      if (p.t === 'E' && fr === 9 && tr === 6) return 20;
+    }
+    return 0;
+  }
+
+  // level 1(쉬움) 2(보통) 3(어려움). budget(ms)을 주면 생각 시간을 바꾼다.
+  function bestMove(st, level, budget) {
     const b = st.board.slice(), g = st.game, side = st.turn;
     let roots = legalMoves(b, g, side);
     if (!roots.length) return g === 'jg' && !st.check ? { pass: true } : null;
-    const maxDepth = [1, 1, 2, 5][level] || 2, budget = [0, 300, 800, 1500][level] || 800;
+    const maxDepth = [1, 1, 2, 6][level] || 2;
+    budget = budget || [0, 300, 800, 1500][level] || 800;
+    const opening = level >= 2 && !st.opts.pieces && st.moves.length < 10;
     const ctx = { nodes: 0, deadline: Date.now() + budget, abort: false };
     const noise = level === 1 ? 120 : 12;
     let bestAll = roots[0];
     for (let d = 1; d <= maxDepth; d++) {
       let alpha = -Infinity, best = null;
       for (const m of roots) {
-        const cap = b[m.to]; b[m.to] = b[m.from]; b[m.from] = null;
-        let v = -nega(b, g, 1 - side, d - 1, -Infinity, -alpha + 40, 1, ctx);
+        const cap = b[m.to], book = opening ? bookBonus(g, b[m.from], m.from, m.to) : 0;
+        b[m.to] = b[m.from]; b[m.from] = null;
+        let v = -nega(b, g, 1 - side, d - 1, -Infinity, -alpha + 90, 1, ctx);
         const rep = st.seen[keyOf(b, 1 - side)] || 0;
         // 빅장을 풀지 않으면 무승부 → 지고 있을 때만 받아들인다
         const draw = g === 'jg' && st.bikjangBy !== null && kingsFacing(b);
         b[m.from] = b[m.to]; b[m.to] = cap;
         if (ctx.abort) break;
         if (draw) v = evalBoard(b, g, side) > -300 ? -5000 : 5000;
-        v += (Math.random() - 0.5) * noise - rep * 60;
+        v += (Math.random() - 0.5) * noise - rep * 60 + book;
         m.v = v;
         if (v > alpha) { alpha = v; best = m; }
       }
@@ -340,6 +381,6 @@
 
   root.Engine = {
     FORMATIONS, SCORE, inPalace, palaceDiag, setup, pieceMoves, allPseudo, legalMoves, inCheck,
-    kingsFacing, score, create, play, undo, bestMove, findKing
+    kingsFacing, score, create, play, undo, bestMove, findKing, JG_MOVE_LIMIT, XQ_QUIET_LIMIT
   };
 })(typeof window !== 'undefined' ? window : globalThis);

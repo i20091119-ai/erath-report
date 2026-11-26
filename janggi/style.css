@@ -127,6 +127,8 @@ svg.bd { display: block; width: 100%; height: auto; border-radius: 13px; touch-a
 .caps { flex: 1; display: flex; flex-wrap: wrap; gap: 2px; justify-content: flex-end; }
 .cp { width: 23px; height: 23px; border-radius: 50%; background: #ecd2a0; display: grid; place-items: center; font-family: var(--serif); font-weight: 900; font-size: 13px; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); animation: pop2 .3s ease; }
 @keyframes pop2 { from { transform: scale(0); } }
+.clk { font-variant-numeric: tabular-nums; font-weight: 700; padding: 4px 10px; border-radius: 9px; background: rgba(0, 0, 0, .45); border: 1px solid var(--line); color: var(--text); min-width: 58px; text-align: center; }
+.clk.low { color: #ff6b6b; border-color: #ff6b6b; }
 .pts { font-family: var(--serif); font-weight: 900; color: var(--gold); min-width: 46px; text-align: right; }
 
 .side { display: grid; gap: 12px; }
