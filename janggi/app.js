@@ -238,7 +238,8 @@
   const G = { st: null, cfg: null, view: null, sel: null, targets: [], hint: null, gen: 0, thinking: false };
 
   function startGame(cfg) {
-    G.cfg = cfg; G.gen++; G.sel = null; G.targets = []; G.hint = null; G.thinking = false;
+    if (cfg.mode !== 'online') Net.leave();
+    G.cfg = cfg; G.gen++; G.sel = null; G.targets = []; G.hint = null; G.thinking = false; G.review = null;
     G.st = E.create(cfg.game, cfg.formations);
     G.clk = cfg.clock ? [cfg.clock * 60000, cfg.clock * 60000] : null; G.lastTick = Date.now();
     G.view = new BoardView($('#board'), cfg.game, onPoint);
@@ -250,7 +251,8 @@
     closeModal(); go('game'); refresh();
     if (cfg.mode === 'ai' && cfg.mySide === 1) aiTurn();
   }
-  const myTurn = () => G.st.status === 'play' && !G.thinking && (G.cfg.mode === 'local' || G.st.turn === G.cfg.mySide);
+  const myTurn = () => G.st.status === 'play' && !G.thinking && G.review == null && (G.cfg.mode === 'local' || G.st.turn === G.cfg.mySide) &&
+    !(G.cfg.mode === 'online' && (G.cfg.watch || !Net.open()));
 
   function onPoint(i) {
     if (!myTurn()) return;
@@ -269,7 +271,7 @@
     const st = G.st, rec = E.play(st, mv);
     if (!rec) return;
     G.sel = null; G.targets = []; G.hint = null;
-    if (G.cfg.mode === 'online' && !remote) Net.send({ t: 'move', mv: { from: mv.from, to: mv.to, pass: !!mv.pass } });
+    if (G.cfg.mode === 'online' && !remote) Net.send({ t: 'move', mv: { from: mv.from, to: mv.to, pass: !!mv.pass }, clk: G.clk });
     if (rec.check) { sfx.check(); shout(st.game === 'jg' ? '장군!' : '將軍!'); }
     else if (rec.cap) sfx.cap(); else sfx.move();
     if (st.game === 'jg' && st.status === 'play' && st.bikjangBy === rec.side && !rec.check) shout('빅장!');
@@ -314,9 +316,10 @@
     const side = G.st.turn;
     G.clk[side] -= dt;
     $$('.clk').forEach(el => { const s = +el.dataset.side; el.textContent = fmtClk(G.clk[s]); el.classList.toggle('low', G.clk[s] < 30000); });
-    if (G.clk[side] <= 0 && (G.cfg.mode !== 'online' || side === G.cfg.mySide)) {
+    // 온라인에서는 자기 시간이 다 된 쪽이 알린다. 상대가 자리에 없으면 남은 쪽이 대신 알린다.
+    if (G.clk[side] <= 0 && (G.cfg.mode !== 'online' || (!G.cfg.watch && Net.open() && (side === G.cfg.mySide || !Net.peer)))) {
       G.gen++; G.thinking = false;
-      if (G.cfg.mode === 'online') Net.send({ t: 'timeout' });
+      if (G.cfg.mode === 'online') Net.send({ t: 'end', winner: 1 - side, reason: 'time' });
       finish(1 - side, 'time');
     }
   }, 250);
@@ -335,6 +338,8 @@
   function roleName(side) {
     const c = G.cfg;
     if (c.mode === 'local') return side === 0 ? '선수 (먼저)' : '후수 (나중)';
+    if (c.watch) return side === c.hostSide ? '방장' : '손님';
+    if (c.mode === 'online' && side !== c.mySide && !Net.peer) return '상대 · 자리 비움';
     if (side === c.mySide) return '나';
     return c.mode === 'ai' ? 'AI · ' + ['', '쉬움', '보통', '어려움'][c.level] : '상대';
   }
@@ -361,15 +366,22 @@
     else if (st.check) sub = g === 'jg' ? '장군! 왕을 지켜야 해요 (멍군)' : '장군(將軍)! 왕을 지켜야 해요';
     else if (g === 'jg' && st.bikjangBy !== null) sub = '빅장! 이번 수에 풀지 않으면 무승부예요';
     else if (G.thinking) sub = 'AI가 생각하는 중…';
+    else if (c.mode === 'online' && !Net.open()) sub = '서버에 다시 연결하는 중…';
+    else if (c.watch) sub = '관전 중이에요';
+    else if (c.mode === 'online' && !Net.peer) sub = '상대가 자리를 비웠어요. 돌아오기를 기다리는 중…';
     else if (c.mode === 'online' && st.turn !== c.mySide) sub = '상대의 수를 기다리는 중…';
+    const playing = st.status === 'play';
     $('#turnTxt').textContent = turn; $('#turnTxt').style.color = P[st.status === 'over' && st.winner != null ? st.winner : st.turn].c;
     $('#subTxt').textContent = sub;
 
-    const playing = st.status === 'play';
-    $('#btnUndo').disabled = c.mode === 'online' || G.thinking || !st.moves.length;
+    const on = c.mode === 'online', canAsk = on && !c.watch && playing && Net.alive();
+    $('#btnUndo').disabled = G.thinking || !st.moves.length || (on && !(canAsk && !Net.askedUndo && st.moves.some(m => m.side === c.mySide)));
+    $('#btnDraw').hidden = !on || c.watch; $('#btnDraw').disabled = !canAsk || Net.askedDraw;
+    $('#chatForm').hidden = $('.emo').hidden = !!c.watch;
     $('#btnHint').disabled = !myTurn();
     $('#btnPass').hidden = g !== 'jg'; $('#btnPass').disabled = !myTurn() || st.check;
-    $('#btnResign').disabled = !playing;
+    $('#btnResign').disabled = !playing || !!c.watch;
+    $('#btnAgain').disabled = !!c.watch;
 
     $('#hist').innerHTML = st.moves.map((m, k) => {
       const txt = m.pass ? '한수쉼' : `${GLYPH[prefs.label][g][m.side][m.piece.t]} ${fileRank(m.from)}→${fileRank(m.to)}${m.cap ? ' ×' + GLYPH[prefs.label][g][m.cap.s][m.cap.t] : ''}${m.check ? ' !' : ''}`;
@@ -393,9 +405,10 @@
       time: '제한 시간이 다 되었어요.', agreed: '서로 합의해서 무승부로 끝냈어요.',
       resign: '기권으로 대국이 끝났어요.', left: '상대가 나가서 대국이 끝났어요.'
     }[st.reason];
-    const iWon = st.winner != null && (c.mode === 'local' || st.winner === c.mySide);
+    const neutral = c.mode === 'local' || c.watch;
+    const iWon = st.winner != null && (neutral || st.winner === c.mySide);
     if (iWon) { confetti(); sfx.win(); } else sfx.lose();
-    const title = st.winner == null ? '무승부' : c.mode === 'local' ? `${P[st.winner].n}(${P[st.winner].h}) 승리!` : iWon ? '승리했어요!' : '아쉽게 졌어요';
+    const title = st.winner == null ? '무승부' : neutral ? `${P[st.winner].n}(${P[st.winner].h}) 승리!` : iWon ? '승리했어요!' : '아쉽게 졌어요';
     const el = modal(`<img class="big" src="./img/result-${st.winner == null ? 'draw' : iWon ? 'win' : 'lose'}.png" alt=""><h2 style="text-align:center">${title}</h2><p style="text-align:center">${why}</p>
       <div class="foot" style="justify-content:center"><button class="btn" data-a="look">판 보기</button><button class="btn" data-a="home">처음으로</button><button class="btn gold" data-a="again">${IC('new')}한 판 더</button></div>`);
     el.onclick = e => {
@@ -408,14 +421,16 @@
   function rematch() {
     const c = G.cfg;
     if (c.mode !== 'online') return startGame(c);
+    if (c.watch) return;
     if (!Net.alive()) return toast('상대와 연결이 끊어져 있어요');
-    if (Net.host) { Net.send({ t: 'start', game: c.game, formations: c.formations, hostSide: c.mySide }); startGame(c); }
+    if (Net.role === 'host') { const start = { t: 'start', game: c.game, formations: c.formations, hostSide: c.mySide, clock: c.clock || 0 }; Net.send(start); Net.begin(start); }
     else { Net.send({ t: 'rematch' }); toast('방장에게 한 판 더를 요청했어요'); }
   }
   function finish(winner, reason) { const st = G.st; st.status = 'over'; st.winner = winner; st.reason = reason; refresh(); showOver(); }
 
   $('#btnUndo').onclick = () => {
     const st = G.st, c = G.cfg;
+    if (c.mode === 'online') { Net.askedUndo = true; Net.send({ t: 'undoReq' }); toast('상대에게 무르기를 요청했어요'); return refresh(); }
     let n = 1;
     if (c.mode === 'ai' && st.moves.length && st.moves[st.moves.length - 1].side !== c.mySide) n = 2;
     if (st.moves.length < n) return;
@@ -439,9 +454,10 @@
     const loser = G.cfg.mode === 'local' ? st.turn : G.cfg.mySide;
     if (!confirm('정말 기권할까요?')) return;
     G.gen++; G.thinking = false;
-    if (G.cfg.mode === 'online') Net.send({ t: 'resign' });
+    if (G.cfg.mode === 'online') Net.send({ t: 'end', winner: 1 - loser, reason: 'resign' });
     finish(1 - loser, 'resign');
   };
+  $('#btnDraw').onclick = () => { Net.askedDraw = true; Net.send({ t: 'drawReq' }); toast('상대에게 무승부를 제안했어요'); refresh(); };
   $('#btnAgain').onclick = () => { if (G.st.status === 'play' && G.st.moves.length && !confirm('지금 판을 그만두고 새 판을 시작할까요?')) return; rematch(); };
 
   /* ---------- 대국 설정 ---------- */
@@ -470,128 +486,201 @@
     };
   }
 
-  /* ---------- 온라인 (PeerJS, 서버 없이 P2P) ---------- */
-  // config.js에 중계 서버 주소(JGXQ_SERVER)가 있으면 웹소켓 서버를, 없으면 PeerJS(P2P)를 쓴다
-  const PREFIX = 'jgxq-room-';
+  /* ---------- 온라인 (Cloudflare 중계 서버, 웹소켓) ----------
+     서버가 방마다 시작 정보와 둔 수를 기억하므로, 새로고침하거나 연결이 끊겨도 같은 방으로 돌아올 수 있다. */
   const SERVER = (window.JGXQ_SERVER || '').trim().replace(/^http/, 'ws').replace(/\/$/, '');
+  const store = {
+    get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 저장소 없음 */ } }
+  };
+  const PID = (() => { // 재접속 때 "같은 사람"임을 알리는 임의의 값
+    let p = null;
+    try { p = localStorage.getItem('jgxq-pid'); } catch (e) { /* 무시 */ }
+    if (!p) {
+      p = Array.from(crypto.getRandomValues(new Uint8Array(12)), x => x.toString(16).padStart(2, '0')).join('');
+      try { localStorage.setItem('jgxq-pid', p); } catch (e) { /* 무시 */ }
+    }
+    return p;
+  })();
+  const END_REASONS = ['resign', 'time', 'agreed', 'left'];
+
   const Net = {
-    peer: null, conn: null, host: false, cfg: null,
-    alive() { return !!(this.conn && this.conn.open); },
-    send(o) { if (this.alive()) this.conn.send(o); },
-    close() { try { if (this.peer) this.peer.destroy(); } catch (e) { /* 무시 */ } this.peer = this.conn = null; },
-    load() {
-      if (window.Peer) return Promise.resolve();
-      return new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = './vendor/peerjs.min.js'; s.onload = res; s.onerror = () => rej(new Error('load'));
-        document.head.appendChild(s);
-      });
+    ws: null, code: null, role: null, peer: false, cfg: null, tries: 0, timer: null, ping: null,
+    joined: false, started: false, askedUndo: false, askedDraw: false,
+    open() { return !!this.ws && this.ws.readyState === 1; },
+    alive() { return this.open() && this.peer; },
+    send(o) { if (this.open()) this.ws.send(JSON.stringify(o)); },
+    save() { store.set('jgxq-room', this.code ? { code: this.code, role: this.role, cfg: this.cfg } : null); },
+    // 스스로 방을 나간다
+    leave() {
+      if (this.started && G.cfg && G.cfg.mode === 'online' && !G.cfg.watch && G.st.status === 'play') this.send({ t: 'end', winner: 1 - G.cfg.mySide, reason: 'left' });
+      clearTimeout(this.timer); clearInterval(this.ping);
+      const ws = this.ws;
+      this.ws = null; this.code = null; this.peer = this.joined = this.started = false; this.tries = 0;
+      this.save();
+      if (ws) { ws.onclose = null; try { ws.close(); } catch (e) { /* 무시 */ } }
     },
-    async open(id) {
-      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if ((e.target.closest('[data-a]') || {dataset: {}}).dataset.a) { this.close(); closeModal(); } };
-      try { await this.load(); } catch (e) { closeModal(); toast('온라인 모듈을 불러오지 못했어요. 인터넷 연결을 확인해 주세요'); return null; }
-      this.close();
-      const po = window.JGXQ_PEER_OPTS || {}; // 자체 중계 서버를 쓸 때 덮어쓰기
-      const peer = this.peer = id ? new window.Peer(id, po) : new window.Peer(po);
-      return new Promise(res => {
-        peer.on('open', () => res(peer));
-        peer.on('error', err => {
-          if (this.peer !== peer) return;
-          const msg = { 'unavailable-id': '방 코드가 겹쳤어요. 다시 만들어 주세요', 'peer-unavailable': '그 코드의 방을 찾지 못했어요', network: '대전 서버에 연결할 수 없어요', 'server-error': '대전 서버에 연결할 수 없어요' }[err.type] || '연결 오류: ' + err.type;
-          toast(msg); if (!this.alive()) { closeModal(); this.close(); } res(null);
-        });
-      });
-    },
-    async hostRoom(cfg) {
+    noServer() { toast('온라인 대전 서버가 아직 설정되지 않았어요'); },
+    hostRoom(cfg) {
+      if (!SERVER) return this.noServer();
       const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       const code = Array.from({ length: 6 }, () => abc[(Math.random() * abc.length) | 0]).join('');
-      this.host = true; this.cfg = cfg;
-      const peer = SERVER ? await this.wsOpen(code, 'host') : await this.open(PREFIX + code); if (!peer) return;
-      const link = location.origin + location.pathname + '?room=' + code;
-      modal(`<h2>방이 열렸어요</h2><p>친구에게 아래 코드나 링크를 보내 주세요. 친구가 들어오면 바로 시작합니다.</p><div class="code">${code}</div>
+      this.leave(); this.cfg = cfg; this.connect(code, 'host');
+    },
+    joinRoom(code) {
+      code = (code || '').trim().toUpperCase();
+      if (!/^[A-Z0-9]{6}$/.test(code)) return toast('방 코드 6자리를 입력해 주세요');
+      if (!SERVER) return this.noServer();
+      const saved = store.get('jgxq-room'), mine = saved && saved.code === code;
+      this.leave(); this.cfg = mine ? saved.cfg : null;
+      this.connect(code, mine ? saved.role : 'guest');
+    },
+    connect(code, role) {
+      this.code = code; this.role = role;
+      if (!this.joined && !this.tries) modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if (e.target.closest('[data-a]')) { this.leave(); closeModal(); } };
+      const ws = this.ws = new WebSocket(`${SERVER}/room/${code}?role=${role}&pid=${PID}`);
+      ws.onmessage = e => { if (this.ws !== ws) return; let d; try { d = JSON.parse(e.data); } catch (err) { return; } if (d && typeof d === 'object') this.onMsg(d); };
+      ws.onclose = () => { if (this.ws === ws) this.retry(); };
+      ws.onopen = () => setTimeout(() => { // 예전 서버는 _hello를 보내지 않는다 → 기본 대국만 되는 방식으로 진행
+        if (this.ws === ws && ws.readyState === 1 && !this.joined) this.onMsg({ t: '_hello', as: role, peer: role === 'guest', sync: null });
+      }, 2500);
+      clearInterval(this.ping);
+      this.ping = setInterval(() => { if (this.open()) this.ws.send('{"t":"_ping"}'); }, 25000);
+    },
+    retry() {
+      if (this.tries >= (this.joined ? 12 : 3)) {
+        toast('대전 서버에 연결할 수 없어요');
+        const keep = this.joined; // 한 번 들어갔던 방은 기록을 남겨 두어 나중에 다시 들어올 수 있게 한다
+        const saved = store.get('jgxq-room');
+        this.started = false; this.leave(); if (keep) store.set('jgxq-room', saved);
+        if (!keep) closeModal();
+        if (G.st) refresh();
+        return;
+      }
+      this.tries++;
+      if (G.st) refresh();
+      this.timer = setTimeout(() => this.connect(this.code, this.role), Math.min(1000 * this.tries, 5000));
+    },
+    showRoom() {
+      const code = this.code, link = location.origin + location.pathname + '?room=' + code;
+      modal(`<h2>방이 열렸어요</h2><p>친구에게 아래 코드나 링크를 보내 주세요. 친구가 들어오면 바로 시작합니다. 세 번째로 들어온 사람부터는 관전합니다.</p><div class="code">${code}</div>
         <p><span class="spin"></span>상대를 기다리는 중…</p><div class="foot"><button class="btn" data-a="x">방 닫기</button><button class="btn gold" data-a="cp">${IC('link')}초대 링크 복사</button></div>`).onclick = e => {
-        const a = (e.target.closest('[data-a]') || {dataset: {}}).dataset.a;
-        if (a === 'x') { this.close(); closeModal(); }
+        const a = (e.target.closest('[data-a]') || { dataset: {} }).dataset.a;
+        if (a === 'x') { this.leave(); closeModal(); }
         if (a === 'cp') (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('초대 링크를 복사했어요'), () => prompt('이 링크를 복사해 보내 주세요', link));
       };
-      if (!SERVER) peer.on('connection', conn => {
-        if (this.alive()) return conn.close();
-        this.wire(conn);
-        conn.on('open', () => conn.send({ t: 'init', game: cfg.game, hostSide: cfg.mySide }));
-      });
     },
-    async joinRoom(code) {
-      code = (code || '').trim().toUpperCase();
-      if (code.length !== 6) return toast('방 코드 6자리를 입력해 주세요');
-      this.host = false;
-      const peer = SERVER ? await this.wsOpen(code, 'guest') : await this.open(); if (!peer) return;
-      $('#sheet p').innerHTML = `<span class="spin"></span>방 ${code}에 들어가는 중…`;
-      if (SERVER) return;
-      const conn = peer.connect(PREFIX + code, { reliable: true });
-      this.wire(conn);
-      setTimeout(() => { if (this.peer === peer && !conn.open) { toast('방에 들어가지 못했어요. 코드를 확인해 주세요'); this.close(); closeModal(); } }, 15000);
+    sendInit() { const c = this.cfg; if (c) this.send({ t: 'init', game: c.game, hostSide: c.mySide }); },
+    onMsg(d) {
+      if (d.t === '_err') {
+        toast({ noroom: '그 코드의 방을 찾지 못했어요', taken: '방 코드가 겹쳤어요. 다시 만들어 주세요' }[d.why] || '연결 오류');
+        this.leave(); closeModal();
+      } else if (d.t === '_hello') {
+        const first = !this.joined;
+        this.joined = true; this.tries = 0; this.role = d.as; this.peer = !!d.peer; this.save();
+        if (d.as === 'watch' && first) toast('관전으로 들어왔어요');
+        if (d.sync) this.applySync(d.sync);
+        else {
+          this.started = false;
+          if (d.as === 'host') { this.showRoom(); if (d.peer) this.sendInit(); }
+          else modal(`<h2>방 ${this.code}</h2><p><span class="spin"></span>${d.as === 'watch' ? '아직 대국이 시작되지 않았어요. 시작되면 바로 보여 드릴게요.' : '방장의 준비를 기다리는 중…'}</p><div class="foot"><button class="btn" data-a="x">나가기</button></div>`).onclick = e => { if (e.target.closest('[data-a]')) { this.leave(); closeModal(); } };
+        }
+        if (G.st) refresh();
+      } else if (d.t === '_joined' || d.t === '_back') {
+        this.peer = true;
+        if (this.role === 'host' && !this.started) this.sendInit();
+        else if (d.t === '_back' && this.started) toast('상대가 돌아왔어요');
+        if (G.st) refresh();
+      } else if (d.t === '_away' || d.t === '_left') {
+        this.peer = false;
+        if (this.started && G.st.status === 'play') toast('상대 연결이 끊겼어요. 돌아오기를 기다립니다');
+        if (G.st) refresh();
+      } else this.onData(d);
     },
-    wire(conn) {
-      this.conn = conn;
-      conn.on('data', d => this.onData(d));
-      conn.on('close', () => this.lost(conn));
+    cfgOf(s) {
+      return { game: s.game, mode: 'online', formations: s.formations, clock: +s.clock || 0, hostSide: s.hostSide, mySide: this.role === 'guest' ? 1 - s.hostSide : s.hostSide, watch: this.role === 'watch' };
     },
-    lost(conn) {
-      if (this.conn !== conn) return;
-      toast('상대와 연결이 끊어졌어요');
-      if (G.cfg && G.cfg.mode === 'online' && G.st.status === 'play') finish(G.cfg.mySide, 'left');
+    validStart(s) { return s && (s.game === 'jg' || s.game === 'xq') && (s.hostSide === 0 || s.hostSide === 1); },
+    begin(s) {
+      if (!this.validStart(s)) return;
+      this.started = true; this.askedUndo = this.askedDraw = false;
+      startGame(this.cfgOf(s));
     },
-    // 웹소켓 중계 서버(Cloudflare Worker)로 방에 연결
-    wsOpen(code, role) {
-      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if ((e.target.closest('[data-a]') || {dataset: {}}).dataset.a) { this.close(); closeModal(); } };
-      this.close();
-      const ws = new WebSocket(`${SERVER}/room/${code}?role=${role}`);
-      const conn = { there: role === 'guest', get open() { return ws.readyState === 1 && this.there; }, send: o => ws.send(JSON.stringify(o)), close: () => ws.close() };
-      const ping = setInterval(() => { if (ws.readyState === 1) ws.send('{"t":"_ping"}'); else if (ws.readyState > 1) clearInterval(ping); }, 25000);
-      this.conn = conn; this.peer = { destroy: () => ws.close() };
-      ws.onmessage = e => {
-        let d; try { d = JSON.parse(e.data); } catch (err) { return; }
-        if (d.t === '_err') {
-          this.conn = null; closeModal();
-          toast({ noroom: '그 코드의 방을 찾지 못했어요', full: '방이 이미 가득 찼어요', taken: '방 코드가 겹쳤어요. 다시 만들어 주세요' }[d.why] || '연결 오류');
-        } else if (d.t === '_joined') { conn.there = true; conn.send({ t: 'init', game: this.cfg.game, hostSide: this.cfg.mySide }); }
-        else if (d.t === '_left') { this.lost(conn); conn.there = false; }
-        else this.onData(d);
-      };
-      ws.onclose = () => this.lost(conn);
+    // 서버가 기억하던 판을 그대로 다시 만든다
+    applySync(sync) {
+      const s = sync.start;
+      if (!this.validStart(s)) return;
+      const same = this.started && G.cfg && G.cfg.mode === 'online' && G.st.moves.length === sync.moves.length && G.cfg.game === s.game && (G.st.status === 'over') === !!(sync.over || G.st.status === 'over');
+      this.started = true;
+      if (same) return;
+      startGame(this.cfgOf(s));
+      for (const m of sync.moves) if (!E.play(G.st, m)) break;
+      if (G.clk && sync.clk && Array.isArray(sync.clk.v)) {
+        G.clk = sync.clk.v.slice(0, 2).map(Number);
+        if (G.st.status === 'play') G.clk[G.st.turn] -= Math.max(0, sync.now - sync.clk.at);
+        G.lastTick = Date.now();
+      }
+      if (sync.over && G.st.status === 'play' && END_REASONS.includes(sync.over.reason)) { G.st.status = 'over'; G.st.winner = sync.over.winner === 0 || sync.over.winner === 1 ? sync.over.winner : null; G.st.reason = sync.over.reason; }
+      if (G.st.status === 'over') store.set('jgxq-room', null); // 끝난 판으로는 자동으로 돌아오지 않는다
+      refresh();
+    },
+    ask(title, text, yes) {
       return new Promise(res => {
-        ws.onopen = () => res(conn);
-        ws.onerror = () => { if (this.conn === conn && ws.readyState !== 1) { this.conn = null; closeModal(); toast('대전 서버에 연결할 수 없어요'); } res(null); };
+        modal(`<h2>${title}</h2><p>${text}</p><div class="foot"><button class="btn" data-a="n">거절</button><button class="btn gold" data-a="y">${yes}</button></div>`).onclick = e => {
+          const a = (e.target.closest('[data-a]') || { dataset: {} }).dataset.a;
+          if (a) { closeModal(); res(a === 'y'); }
+        };
       });
     },
     onData(d) {
-      if (!d || typeof d !== 'object') return;
-      const online = G.cfg && G.cfg.mode === 'online';
-      if (d.t === 'init' && !this.host) {
+      const online = G.cfg && G.cfg.mode === 'online' && this.started, st = G.st, watch = this.role === 'watch';
+      const me = online ? G.cfg.mySide : 0;
+      if (d.t === 'init' && this.role === 'guest' && !this.started) {
+        if (d.hostSide !== 0 && d.hostSide !== 1) return;
         const ready = f => this.send({ t: 'ready', formation: f });
         if (d.game !== 'jg') return ready(null);
         const el = modal(`<h2>상차림 고르기</h2><p>${GNAME.jg} 방에 들어왔어요. 나는 ${PLAYER.jg[1 - d.hostSide].n}(${PLAYER.jg[1 - d.hostSide].h})입니다. 마와 상의 자리를 골라 주세요.</p>${formOpts('oF')}<div class="foot"><button class="btn gold" data-a="ok">준비 완료</button></div>`);
         optGroup($('#oF', el), 'EHEH');
-        el.onclick = e => { if ((e.target.closest('[data-a]') || {dataset: {}}).dataset.a) { ready($('#oF', el).dataset.val); el.innerHTML = '<h2>준비 완료</h2><p><span class="spin"></span>곧 시작합니다…</p>'; } };
-      } else if (d.t === 'ready' && this.host) {
+        el.onclick = e => { if (e.target.closest('[data-a]')) { ready($('#oF', el).dataset.val); el.onclick = null; el.innerHTML = '<h2>준비 완료</h2><p><span class="spin"></span>곧 시작합니다…</p>'; } };
+      } else if (d.t === 'ready' && this.role === 'host' && !this.started && this.cfg) {
         const c = this.cfg, formations = [];
         formations[c.mySide] = c.formation; formations[1 - c.mySide] = E.FORMATIONS[d.formation] ? d.formation : 'EHEH';
-        this.send({ t: 'start', game: c.game, formations, hostSide: c.mySide });
-        startGame({ game: c.game, mode: 'online', mySide: c.mySide, formations });
+        const start = { t: 'start', game: c.game, formations, hostSide: c.mySide, clock: c.clock || 0 };
+        this.send(start); this.begin(start);
         toast('상대가 들어왔어요. 대국을 시작합니다!');
-      } else if (d.t === 'start' && !this.host) {
-        if (d.game !== 'jg' && d.game !== 'xq') return;
-        startGame({ game: d.game, mode: 'online', mySide: 1 - d.hostSide, formations: d.formations });
-      } else if (d.t === 'move' && online) {
-        const st = G.st, mv = d.mv || {};
-        if (st.status !== 'play' || st.turn === G.cfg.mySide) return;
+      } else if (d.t === 'start' && this.role !== 'host') { this.begin(d); }
+      else if (!online) return;
+      else if (d.t === 'move') {
+        const mv = d.mv || {};
+        if (st.status !== 'play' || (!watch && st.turn === me)) return;
         const ok = mv.pass ? st.game === 'jg' && !st.check : E.legalMoves(st.board, st.game, st.turn, mv.from).some(m => m.to === mv.to);
-        if (ok) doMove(mv.pass ? { pass: true } : { from: mv.from, to: mv.to }, true);
-      } else if (d.t === 'chat' && online) { addChat(String(d.text).slice(0, 120), false); }
-      else if (d.t === 'resign' && online && G.st.status === 'play') finish(G.cfg.mySide, 'resign');
-      else if (d.t === 'rematch' && this.host && online) { toast('상대가 한 판 더를 요청했어요'); closeModal(); rematch(); }
+        if (!ok) return;
+        if (G.clk && Array.isArray(d.clk)) { G.clk = d.clk.slice(0, 2).map(Number); G.lastTick = Date.now(); }
+        doMove(mv.pass ? { pass: true } : { from: mv.from, to: mv.to }, true);
+      } else if (d.t === 'chat') addChat(String(d.text).slice(0, 120), false);
+      else if (d.t === 'end' && st.status === 'play' && END_REASONS.includes(d.reason)) {
+        const w = d.winner === 0 || d.winner === 1 ? d.winner : null;
+        // 상대가 스스로 진 경우, 내가 청한 무승부를 받아들인 경우, 내 시간이 실제로 다 된 경우만 인정
+        const ok = watch || (d.reason === 'agreed' ? this.askedDraw && w === null : w === me || (d.reason === 'time' && G.clk && G.clk[me] < 3000));
+        if (ok) { G.gen++; closeModal(); finish(w, d.reason); }
+      } else if (d.t === 'rematch' && this.role === 'host' && st.status === 'over') { toast('상대가 한 판 더를 요청했어요'); closeModal(); rematch(); }
+      else if (d.t === 'undoReq' && !watch && st.status === 'play' && st.moves.length) {
+        this.ask('무르기 요청', '상대가 방금 둔 수를 무르고 싶어 해요. 허락할까요?', '허락').then(yes => {
+          if (!yes || st !== G.st || st.status !== 'play') return this.send({ t: 'undoNo' });
+          const n = Math.min(st.moves.length, st.moves[st.moves.length - 1].side === me ? 2 : 1);
+          this.send({ t: 'undoOk', n }); applyUndo(n);
+        });
+      } else if (d.t === 'undoOk' && (watch || this.askedUndo)) { this.askedUndo = false; applyUndo(d.n === 2 ? 2 : 1); if (!watch) toast('상대가 무르기를 허락했어요'); }
+      else if (d.t === 'undoNo' && this.askedUndo) { this.askedUndo = false; toast('상대가 무르기를 거절했어요'); refresh(); }
+      else if (d.t === 'drawReq' && !watch && st.status === 'play') {
+        this.ask('무승부 제안', '상대가 무승부를 제안했어요. 받아들일까요?', '무승부').then(yes => {
+          if (!yes || st !== G.st || st.status !== 'play') return this.send({ t: 'drawNo' });
+          this.send({ t: 'end', winner: null, reason: 'agreed' }); finish(null, 'agreed');
+        });
+      } else if (d.t === 'drawNo' && this.askedDraw) { this.askedDraw = false; toast('상대가 무승부를 거절했어요'); refresh(); }
     }
   };
+  function applyUndo(n) { E.undo(G.st, Math.min(n, G.st.moves.length)); G.sel = null; G.targets = []; G.hint = null; refresh(); }
   function addChat(text, me) {
     const d = document.createElement('div'); d.textContent = text; if (me) d.className = 'me';
     $('#chatLog').appendChild(d); $('#chatLog').scrollTop = 1e6;
@@ -663,7 +752,9 @@
     $('#btnSound').onclick = () => { prefs.sound = !prefs.sound; savePrefs(); syncTools(); };
     syncTools();
     const room = new URLSearchParams(location.search).get('room');
+    const saved = store.get('jgxq-room');
     if (room) { $('#joinCode').value = room.toUpperCase().slice(0, 6); Net.joinRoom(room); }
+    else if (saved && saved.code) { toast('하던 온라인 대국으로 돌아갑니다'); Net.joinRoom(saved.code); }
   }
   init();
   window.__app = { G, Net, startGame, doMove, onPoint };
