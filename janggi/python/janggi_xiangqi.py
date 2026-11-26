@@ -461,15 +461,20 @@ def _nega(b, g, side, depth, alpha, beta, ply, ctx):
     if ctx['nodes'] & 255 == 0 and time.time() > ctx['deadline']:
         raise _Timeout()
     if depth <= 0:
-        return _quiesce(b, g, side, alpha, beta, 2)
+        v = _quiesce(b, g, side, alpha, beta, 2)
+        if v >= WIN:   # 왕을 잡는 결과는 가까울수록 값이 크게
+            return WIN - ply * 100
+        if v <= -WIN:
+            return -WIN + ply * 100
+        return v
     ms = _ordered(b, g, side)
     if not ms:
-        return -WIN + ply if g == 'xq' else eval_board(b, g, side)
+        return -WIN + ply * 100 if g == 'xq' else eval_board(b, g, side)
     best = -float('inf')
     for _, f, t in ms:
         cap = b[t]
         if cap is not None and cap[0] == 'K':
-            return WIN - ply
+            return WIN - ply * 100  # 빠른 승리를 뚜렷하게 선호 (무작위 흔들림보다 크게)
         b[t] = b[f]; b[f] = None
         try:
             v = -_nega(b, g, 1 - side, depth - 1, -beta, -alpha, ply + 1, ctx)
@@ -632,7 +637,7 @@ def run_app(hook=None):
 
             btns = tk.Frame(side, bg='#131729')
             btns.pack(fill='x')
-            specs = [('새 판', self.new_dialog), ('무르기', self.undo), ('힌트', self.ask_hint), ('한수쉼', self.do_pass),
+            specs = [('게임 선택 · 새 판', self.new_dialog), ('무르기', self.undo), ('힌트', self.ask_hint), ('한수쉼', self.do_pass),
                      ('판 뒤집기', self.flip), ('기권', self.resign), ('한자/한글', self.toggle_label), ('규칙 차이', self.show_diffs)]
             self.btn = {}
             for k, (text, cmd) in enumerate(specs):
@@ -654,6 +659,7 @@ def run_app(hook=None):
 
             self.start()
             root.after(60, self.poll)
+            root.after(250, self.new_dialog)  # 켜자마자 어떤 게임을 둘지 고르게 한다
 
         # ---------------- 대국 진행 ----------------
         def start(self):
@@ -860,7 +866,7 @@ def run_app(hook=None):
             self.title.config(text='%s · %s' % (GNAME[g], mode))
             if st.status == 'over':
                 self.turn_lbl.config(text='무승부' if st.winner is None else '%s 승리!' % P[st.winner][0])
-                sub = '새 판을 눌러 다시 둘 수 있습니다.'
+                sub = '「게임 선택 · 새 판」을 눌러 다시 둘 수 있습니다.'
             else:
                 self.turn_lbl.config(text='%s(%s) 차례' % P[st.turn])
                 sub = '%d번째 수' % (len(st.moves) + 1)
@@ -901,7 +907,7 @@ def run_app(hook=None):
         def new_dialog(self):
             c = self.cfg
             win = tk.Toplevel(self.root)
-            win.title('새 판')
+            win.title('게임 선택 · 새 판')
             win.transient(self.root)
             win.grab_set()
             win.resizable(False, False)
