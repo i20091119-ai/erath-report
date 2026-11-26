@@ -62,11 +62,18 @@
         </div>
       </article>
     </section>
+    <section class="joinbar" id="resume" hidden>
+      <span id="resumeTxt"></span>
+      <button class="btn gold" id="btnResume">이어 두기</button>
+      <button class="btn ghost" id="btnForget">지우기</button>
+    </section>
     <section class="joinbar">
       <span>친구에게 방 코드를 받았나요?</span>
       <input id="joinCode" maxlength="6" placeholder="방 코드 6자리" autocomplete="off">
       <button class="btn gold" id="btnJoin">참가하기</button>
       <button class="btn ghost" data-go="compare"><img class="ic" src="./img/ic-book.png" alt="">차이점부터 볼래요</button>
+      <button class="btn ghost" id="btnLoad">기보 불러오기</button>
+      <input type="file" id="kifuFile" accept=".json,application/json" hidden>
     </section>
   </main>
 
@@ -83,6 +90,20 @@
       <div class="duo-card xq"><h3><span class="dot"></span>중국 상치</h3><div class="mini" id="miniXq"></div><p id="descXq"></p></div>
     </section>
     <p class="legend"><span class="lg move"></span>이동할 수 있는 자리 <span class="lg cap"></span>잡을 수 있는 기물</p>
+    <section class="hero small"><h1>따라 해 보기</h1><p class="lead">과제를 읽고 판에서 직접 두어 보세요. 기물을 누르면 갈 수 있는 자리가 표시됩니다.</p></section>
+    <section class="lesson">
+      <div class="board-wrap"><div id="lsBoard"></div></div>
+      <div class="card lesson-side">
+        <div class="gname" id="lsNo"></div>
+        <h3 id="lsTitle"></h3>
+        <p id="lsText"></p>
+        <p id="lsMsg" class="lsmsg" aria-live="polite"></p>
+        <div class="row"><button class="btn" id="lsPrev">이전</button><button class="btn" id="lsReset">다시</button><button class="btn" id="lsNext">다음</button></div>
+        <div class="dots" id="lsDots"></div>
+      </div>
+    </section>
+    <section class="hero small"><h1>차이점 퀴즈</h1></section>
+    <section class="card quiz" id="quiz"></section>
     <section class="hero small"><h1>한눈에 보는 규칙 차이</h1></section>
     <section class="diffs" id="diffs"></section>
   </main>
@@ -107,7 +128,9 @@
           <button class="btn gold" id="btnAgain"><img class="ic" src="./img/ic-new.png" alt="">새 판</button>
         </div>
         <div class="card tip" id="tip"><b>기물을 눌러 보세요</b><p>갈 수 있는 자리가 표시되고, 이 기물이 두 게임에서 어떻게 다른지 알려 드려요.</p></div>
-        <div class="card hist"><h4>기보</h4><ol id="hist"></ol></div>
+        <div class="card hist"><h4>기보</h4>
+          <div class="rv"><button class="btn" data-rv="first" title="처음으로">⏮</button><button class="btn" data-rv="prev" title="한 수 뒤로">◀</button><button class="btn" data-rv="next" title="한 수 앞으로">▶</button><button class="btn" data-rv="last" title="마지막으로">⏭</button><button class="btn" id="btnSave" title="기보를 파일로 저장">저장</button></div>
+          <ol id="hist"></ol></div>
         <div class="card chat" id="chat" hidden>
           <h4>대화</h4><div id="chatLog"></div>
           <div class="emo"><button>👍</button><button>😄</button><button>😱</button><button>🤔</button><button>👏</button><button>🙏</button></div>
@@ -128,5 +151,6 @@
   <script src="./config.js"></script>
   <script src="./engine.js"></script>
   <script src="./app.js"></script>
+  <script src="./learn.js"></script>
 </body>
 </html>
