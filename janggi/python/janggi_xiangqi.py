@@ -721,6 +721,32 @@ def run_app(hook=None):
     import threading
     import tkinter as tk
     from tkinter import messagebox
+    from tkinter import font as tkfont
+
+    class FlatButton(tk.Label):
+        """색을 직접 칠하는 버튼. 맥의 기본 버튼은 배경색 지정을 무시해서 글씨가 묻히므로, 어느 운영체제에서나 같게 보이도록 따로 만든다."""
+
+        def __init__(self, parent, text, cmd, image=None, gold=False):
+            self.c_bg, self.c_hover = (GOLD, '#f3d68e') if gold else ('#2a3058', '#3a4170')
+            self.c_fg, self.c_off = ('#24180a' if gold else TEXT), '#6f7390'
+            self.cmd, self.enabled = cmd, True
+            opt = dict(text=text, bg=self.c_bg, fg=self.c_fg, font=(FONT, 10, 'bold' if gold else 'normal'), padx=10, pady=6, cursor='hand2')
+            if image is not None:
+                opt.update(image=image, compound='left', text=' ' + text)
+            tk.Label.__init__(self, parent, **opt)
+            self.bind('<Button-1>', lambda e: self.enabled and self.cmd())
+            self.bind('<Enter>', lambda e: self.enabled and tk.Label.config(self, bg=self.c_hover))
+            self.bind('<Leave>', lambda e: tk.Label.config(self, bg=self.c_bg))
+
+        def config(self, **kw):
+            state = kw.pop('state', None)
+            if state is not None:  # 'normal' / 'disabled'
+                self.enabled = state != 'disabled'
+                kw.update(fg=self.c_fg if self.enabled else self.c_off, cursor='hand2' if self.enabled else '')
+            if kw:
+                tk.Label.config(self, **kw)
+
+        configure = config
 
     class App:
         def __init__(self, root):
@@ -817,14 +843,8 @@ def run_app(hook=None):
 
         def button(self, parent, text, cmd, icon=None, gold=False):
             """어두운 바탕의 버튼. icon 이름의 그림이 있으면 글자 왼쪽에 붙인다."""
-            opt = dict(text=text, command=cmd, font=(FONT, 10, 'bold' if gold else 'normal'), relief='flat', cursor='hand2', padx=8, pady=5,
-                       bg=GOLD if gold else '#2a3058', fg='#24180a' if gold else TEXT, activebackground='#f3d68e' if gold else '#3a4170',
-                       activeforeground='#24180a' if gold else TEXT, disabledforeground='#6f7390', borderwidth=0, highlightthickness=0)
             im = self.img.get('ic-' + icon) if icon and not gold else None  # 금색 버튼에는 금색 그림이 묻히므로 붙이지 않는다
-            if im is not None:
-                opt.update(image=im, compound='left')
-                opt['text'] = ' ' + text
-            return tk.Button(parent, **opt)
+            return FlatButton(parent, text, cmd, im, gold)
 
         # ---------------- 대국 진행 ----------------
         def start(self):
@@ -1405,6 +1425,9 @@ def run_app(hook=None):
             self.center(win)
 
     root = tk.Tk()
+    global FONT  # 이 컴퓨터에 있는 한글 글꼴을 고른다 (윈도우 · 맥 · 리눅스 순)
+    have = set(tkfont.families(root))
+    FONT = next((f for f in ('Malgun Gothic', 'Apple SD Gothic Neo', 'AppleGothic', 'NanumGothic', 'Noto Sans CJK KR') if f in have), FONT)
     app = App(root)
     if hook:
         hook(app, root)
