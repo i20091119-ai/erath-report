@@ -54,11 +54,9 @@ button { cursor: pointer; }
 .pick { position: relative; padding: 22px; border-radius: 24px; background: linear-gradient(160deg, rgba(255, 255, 255, .085), rgba(255, 255, 255, .02)); border: 1px solid var(--line); overflow: hidden; transition: transform .35s cubic-bezier(.2, .8, .2, 1), box-shadow .35s, border-color .35s; }
 .pick::before { content: ''; position: absolute; inset: 0; background: radial-gradient(500px 240px at 80% 0%, var(--c), transparent 70%); opacity: .2; pointer-events: none; }
 .pick.jg { --c: var(--jg); } .pick.xq { --c: var(--xq); }
-.pick:hover { transform: translateY(-6px); border-color: var(--c); box-shadow: 0 26px 60px -24px var(--c); }
+.pick:hover { border-color: var(--c); box-shadow: 0 26px 60px -24px var(--c); }
 .pick-art { height: 132px; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .pick-art svg { height: 100%; overflow: visible; }
-.pick-art .bob { animation: bob 3.6s ease-in-out infinite; }
-@keyframes bob { 50% { transform: translateY(-7px); } }
 .pick h2 { font-family: var(--serif); font-weight: 900; font-size: 27px; margin: 8px 0 8px; }
 .pick h2 small { font-size: 13px; color: var(--mute); font-weight: 500; margin-left: 8px; }
 .pick ul { margin: 0 0 18px; padding-left: 18px; color: var(--mute); line-height: 1.85; font-size: 14.5px; }
@@ -66,7 +64,7 @@ button { cursor: pointer; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .btn { padding: 10px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass); font-weight: 500; transition: .18s; white-space: nowrap; }
-.btn:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-1px); }
+.btn:hover:not(:disabled) { border-color: var(--gold); filter: brightness(1.12); }
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .btn.gold { background: linear-gradient(135deg, var(--gold), var(--gold2)); color: #24180a; border-color: transparent; font-weight: 700; box-shadow: 0 8px 22px -10px var(--gold); }
 .btn.ghost { background: none; }
