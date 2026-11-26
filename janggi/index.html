@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>장기 × 象棋 — 한국 장기와 중국 상치</title>
   <meta name="description" content="한국 장기와 중국 상치(象棋)를 함께 두고, 규칙 차이를 직접 눌러 보며 배우는 웹앱">
+  <link rel="icon" type="image/png" href="./img/icon.png">
+  <link rel="apple-touch-icon" href="./img/icon-180.png">
+  <meta property="og:title" content="장기 × 象棋">
+  <meta property="og:description" content="한국 장기와 중국 상치를 함께 두고 차이를 배우는 웹앱">
+  <meta property="og:image" content="https://i20091119-ai.github.io/erath-report/janggi/img/og.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -37,23 +42,23 @@
     </section>
     <section class="picks">
       <article class="pick jg" data-game="jg">
-        <div class="pick-art" id="artJg"></div>
+        <div class="pick-art" style="background-image:url(./img/card-jg.jpg)"></div>
         <h2>한국 장기 <small>將棋 · Janggi</small></h2>
         <ul><li>강이 없는 판, 궁성 한가운데의 왕</li><li>넘어야만 움직이는 포</li><li>한수쉼 · 빅장 · 점수제</li></ul>
         <div class="row">
-          <button class="btn gold" data-start="ai">🤖 AI와 대국</button>
-          <button class="btn" data-start="local">👥 둘이서</button>
-          <button class="btn" data-start="online">🌐 온라인</button>
+          <button class="btn gold" data-start="ai"><img class="ic" src="./img/ic-ai.png" alt="">AI와 대국</button>
+          <button class="btn" data-start="local"><img class="ic" src="./img/ic-local.png" alt="">둘이서</button>
+          <button class="btn" data-start="online"><img class="ic" src="./img/ic-online.png" alt="">온라인</button>
         </div>
       </article>
       <article class="pick xq" data-game="xq">
-        <div class="pick-art" id="artXq"></div>
+        <div class="pick-art" style="background-image:url(./img/card-xq.jpg)"></div>
         <h2>중국 상치 <small>象棋 · Xiangqi</small></h2>
         <ul><li>초하한계(楚河漢界), 강이 흐르는 판</li><li>차처럼 달리고 넘어서 잡는 포</li><li>왕끼리 마주 볼 수 없는 비장 규칙</li></ul>
         <div class="row">
-          <button class="btn gold" data-start="ai">🤖 AI와 대국</button>
-          <button class="btn" data-start="local">👥 둘이서</button>
-          <button class="btn" data-start="online">🌐 온라인</button>
+          <button class="btn gold" data-start="ai"><img class="ic" src="./img/ic-ai.png" alt="">AI와 대국</button>
+          <button class="btn" data-start="local"><img class="ic" src="./img/ic-local.png" alt="">둘이서</button>
+          <button class="btn" data-start="online"><img class="ic" src="./img/ic-online.png" alt="">온라인</button>
         </div>
       </article>
     </section>
@@ -61,7 +66,7 @@
       <span>친구에게 방 코드를 받았나요?</span>
       <input id="joinCode" maxlength="6" placeholder="방 코드 6자리" autocomplete="off">
       <button class="btn gold" id="btnJoin">참가하기</button>
-      <button class="btn ghost" data-go="compare">📖 차이점부터 볼래요</button>
+      <button class="btn ghost" data-go="compare"><img class="ic" src="./img/ic-book.png" alt="">차이점부터 볼래요</button>
     </section>
   </main>
 
@@ -93,12 +98,12 @@
       <aside class="side">
         <div class="card status"><div class="gname" id="gName"></div><div class="turn" id="turnTxt"></div><div class="sub" id="subTxt"></div></div>
         <div class="card controls">
-          <button class="btn" id="btnUndo">↩ 무르기</button>
-          <button class="btn" id="btnHint">💡 힌트</button>
-          <button class="btn" id="btnPass">⏸ 한수쉼</button>
-          <button class="btn" id="btnFlip">⇅ 판 뒤집기</button>
-          <button class="btn" id="btnResign">🏳 기권</button>
-          <button class="btn gold" id="btnAgain">↻ 새 판</button>
+          <button class="btn" id="btnUndo"><img class="ic" src="./img/ic-undo.png" alt="">무르기</button>
+          <button class="btn" id="btnHint"><img class="ic" src="./img/ic-hint.png" alt="">힌트</button>
+          <button class="btn" id="btnPass"><img class="ic" src="./img/ic-pass.png" alt="">한수쉼</button>
+          <button class="btn" id="btnFlip"><img class="ic" src="./img/ic-flip.png" alt="">판 뒤집기</button>
+          <button class="btn" id="btnResign"><img class="ic" src="./img/ic-resign.png" alt="">기권</button>
+          <button class="btn gold" id="btnAgain"><img class="ic" src="./img/ic-new.png" alt="">새 판</button>
         </div>
         <div class="card tip" id="tip"><b>기물을 눌러 보세요</b><p>갈 수 있는 자리가 표시되고, 이 기물이 두 게임에서 어떻게 다른지 알려 드려요.</p></div>
         <div class="card hist"><h4>기보</h4><ol id="hist"></ol></div>

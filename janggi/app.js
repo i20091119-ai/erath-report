@@ -29,6 +29,8 @@
     jg: [{ n: '초', h: '楚', c: '#2fbf8a' }, { n: '한', h: '漢', c: '#ff5d5d' }],
     xq: [{ n: '홍', h: '紅', c: '#ff5d5d' }, { n: '흑', h: '黑', c: '#c9c9d6' }]
   };
+  const AVATAR = { jg: ['cho', 'han'], xq: ['red', 'black'] };
+  const IC = n => `<img class="ic" src="./img/ic-${n}.png" alt="">`;
   const GNAME = { jg: '한국 장기', xq: '중국 상치' };
   const PNAME = { K: '왕', A: '사', E: '상', H: '마', R: '차', C: '포', P: '졸 · 병' };
   const INFO = {
@@ -55,6 +57,7 @@
     ['기물 모양', '팔각형, 종류마다 크기가 다름.', '둥근 모양, 모두 같은 크기.'],
     ['점수', '기물 점수제(차13·포7·마5·상3·사3·졸2), 한에게 덤 1.5.', '점수제 없이 왕을 잡아야 승리.']
   ];
+  const DIFF_IMG = ['board', 'kingpos', 'guard', 'elephant', 'cannon', 'soldier', 'palace', 'facing', 'pass', 'formation', 'first', 'shape', 'score'];
   const DEMO = {
     K: { jg: 76, xq: 85, ex: [] },
     A: { jg: 84, xq: 84, ex: [] },
@@ -97,19 +100,19 @@
     let r;
     if (game === 'xq') {
       r = 27;
-      for (const f of ['wood', 'pimg', 'shade']) S('circle', { r, fill: `url(#${f})`, stroke: f === 'shade' ? '#5a3912' : 'none', 'stroke-width': 1.5 }, body);
+      for (const f of ['wood', 'pimg-' + game, 'shade']) S('circle', { r, fill: `url(#${f})`, stroke: f === 'shade' ? '#5a3912' : 'none', 'stroke-width': 1.5 }, body);
       S('circle', { r: r - 5, fill: 'none', stroke: ink, 'stroke-width': 1.6, opacity: .8 }, body);
     } else {
       r = p.t === 'K' ? 30 : (p.t === 'A' || p.t === 'P') ? 21.5 : 26.5;
       const pts = [];
       for (let k = 0; k < 8; k++) { const a = (22.5 + 45 * k) * Math.PI / 180; pts.push((r * Math.cos(a)).toFixed(1) + ',' + (r * Math.sin(a)).toFixed(1)); }
-      for (const f of ['wood', 'pimg', 'shade']) S('polygon', { points: pts.join(' '), fill: `url(#${f})`, stroke: f === 'shade' ? '#5a3912' : 'none', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, body);
+      for (const f of ['wood', 'pimg-' + game, 'shade']) S('polygon', { points: pts.join(' '), fill: `url(#${f})`, stroke: f === 'shade' ? '#5a3912' : 'none', 'stroke-width': 1.5, 'stroke-linejoin': 'round' }, body);
     }
     const t = S('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-size': (r * 1.02).toFixed(0), fill: ink, y: 1 }, g);
     t.textContent = GLYPH[label][game][p.s][p.t];
   }
   const DEFS = '<defs><radialGradient id="wood" cx="35%" cy="28%" r="85%"><stop offset="0" stop-color="#fff3d6"/><stop offset=".55" stop-color="#ecd09a"/><stop offset="1" stop-color="#c79a54"/></radialGradient>' +
-    '<pattern id="pimg" patternContentUnits="objectBoundingBox" width="1" height="1"><image href="./img/piece.jpg" width="1" height="1" preserveAspectRatio="xMidYMid slice"/></pattern>' +
+    ['jg', 'xq'].map(g => `<pattern id="pimg-${g}" patternContentUnits="objectBoundingBox" width="1" height="1"><image href="./img/piece-${g}.jpg" width="1" height="1" preserveAspectRatio="xMidYMid slice"/></pattern>`).join('') +
     '<radialGradient id="shade" cx="35%" cy="26%" r="80%"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#5a3206" stop-opacity=".42"/></radialGradient>' +
     '<linearGradient id="bdjg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9c887"/><stop offset="1" stop-color="#cfa25a"/></linearGradient>' +
     '<linearGradient id="bdxq" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0d6a2"/><stop offset="1" stop-color="#d9a868"/></linearGradient></defs>';
@@ -311,7 +314,8 @@
     const bar = (el, side) => {
       el.className = 'pbar' + (st.status === 'play' && st.turn === side ? ' act' : '');
       el.style.color = P[side].c;
-      el.innerHTML = `<div class="av">${P[side].h}</div><div class="nm" style="color:var(--text)">${P[side].n}<small>${roleName(side)}</small></div>` +
+      const av = c.mode === 'ai' && side !== c.mySide ? 'ai' : AVATAR[g][side];
+      el.innerHTML = `<img class="av" src="./img/av-${av}.png" alt="${P[side].h}"><div class="nm" style="color:var(--text)">${P[side].n}<small>${roleName(side)}</small></div>` +
         `<div class="caps">${st.captured[side].map(p => `<span class="cp" style="color:${INK[g][p.s]}">${GLYPH[prefs.label][g][p.s][p.t]}</span>`).join('')}</div>` +
         (sc ? `<div class="pts">${sc[side]}점</div>` : '');
     };
@@ -355,10 +359,10 @@
     const iWon = st.winner != null && (c.mode === 'local' || st.winner === c.mySide);
     if (iWon) { confetti(); sfx.win(); } else sfx.lose();
     const title = st.winner == null ? '무승부' : c.mode === 'local' ? `${P[st.winner].n}(${P[st.winner].h}) 승리!` : iWon ? '승리했어요!' : '아쉽게 졌어요';
-    const el = modal(`<div class="big">${st.winner == null ? '🤝' : iWon ? '🏆' : '🍵'}</div><h2 style="text-align:center">${title}</h2><p style="text-align:center">${why}</p>
-      <div class="foot" style="justify-content:center"><button class="btn" data-a="look">판 보기</button><button class="btn" data-a="home">처음으로</button><button class="btn gold" data-a="again">↻ 한 판 더</button></div>`);
+    const el = modal(`<img class="big" src="./img/result-${st.winner == null ? 'draw' : iWon ? 'win' : 'lose'}.png" alt=""><h2 style="text-align:center">${title}</h2><p style="text-align:center">${why}</p>
+      <div class="foot" style="justify-content:center"><button class="btn" data-a="look">판 보기</button><button class="btn" data-a="home">처음으로</button><button class="btn gold" data-a="again">${IC('new')}한 판 더</button></div>`);
     el.onclick = e => {
-      const a = e.target.dataset.a; if (!a) return;
+      const a = (e.target.closest('[data-a]') || {dataset: {}}).dataset.a; if (!a) return;
       closeModal();
       if (a === 'home') go('home');
       if (a === 'again') rematch();
@@ -412,7 +416,7 @@
     $$('.opts', el).forEach(o => optGroup(o, o.id === 'oLevel' ? 2 : o.id === 'oSide' ? 0 : 'EHEH'));
     const val = id => { const o = $('#' + id, el); return o ? o.dataset.val : null; };
     el.onclick = e => {
-      const a = e.target.dataset.a; if (!a) return;
+      const a = (e.target.closest('[data-a]') || {dataset: {}}).dataset.a; if (!a) return;
       if (a === 'x') return closeModal();
       const mySide = +(val('oSide') || 0), keys = Object.keys(E.FORMATIONS);
       const rnd = keys[(Math.random() * 4) | 0];
@@ -441,7 +445,7 @@
       });
     },
     async open(id) {
-      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if (e.target.dataset.a) { this.close(); closeModal(); } };
+      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if ((e.target.closest('[data-a]') || {dataset: {}}).dataset.a) { this.close(); closeModal(); } };
       try { await this.load(); } catch (e) { closeModal(); toast('온라인 모듈을 불러오지 못했어요. 인터넷 연결을 확인해 주세요'); return null; }
       this.close();
       const po = window.JGXQ_PEER_OPTS || {}; // 자체 중계 서버를 쓸 때 덮어쓰기
@@ -462,8 +466,8 @@
       const peer = SERVER ? await this.wsOpen(code, 'host') : await this.open(PREFIX + code); if (!peer) return;
       const link = location.origin + location.pathname + '?room=' + code;
       modal(`<h2>방이 열렸어요</h2><p>친구에게 아래 코드나 링크를 보내 주세요. 친구가 들어오면 바로 시작합니다.</p><div class="code">${code}</div>
-        <p><span class="spin"></span>상대를 기다리는 중…</p><div class="foot"><button class="btn" data-a="x">방 닫기</button><button class="btn gold" data-a="cp">🔗 초대 링크 복사</button></div>`).onclick = e => {
-        const a = e.target.dataset.a;
+        <p><span class="spin"></span>상대를 기다리는 중…</p><div class="foot"><button class="btn" data-a="x">방 닫기</button><button class="btn gold" data-a="cp">${IC('link')}초대 링크 복사</button></div>`).onclick = e => {
+        const a = (e.target.closest('[data-a]') || {dataset: {}}).dataset.a;
         if (a === 'x') { this.close(); closeModal(); }
         if (a === 'cp') (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('초대 링크를 복사했어요'), () => prompt('이 링크를 복사해 보내 주세요', link));
       };
@@ -496,7 +500,7 @@
     },
     // 웹소켓 중계 서버(Cloudflare Worker)로 방에 연결
     wsOpen(code, role) {
-      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if (e.target.dataset.a) { this.close(); closeModal(); } };
+      modal('<h2>연결 준비 중</h2><p><span class="spin"></span>대전 서버에 연결하고 있어요…</p><div class="foot"><button class="btn" data-a="x">취소</button></div>').onclick = e => { if ((e.target.closest('[data-a]') || {dataset: {}}).dataset.a) { this.close(); closeModal(); } };
       this.close();
       const ws = new WebSocket(`${SERVER}/room/${code}?role=${role}`);
       const conn = { there: role === 'guest', get open() { return ws.readyState === 1 && this.there; }, send: o => ws.send(JSON.stringify(o)), close: () => ws.close() };
@@ -525,7 +529,7 @@
         if (d.game !== 'jg') return ready(null);
         const el = modal(`<h2>상차림 고르기</h2><p>${GNAME.jg} 방에 들어왔어요. 나는 ${PLAYER.jg[1 - d.hostSide].n}(${PLAYER.jg[1 - d.hostSide].h})입니다. 마와 상의 자리를 골라 주세요.</p>${formOpts('oF')}<div class="foot"><button class="btn gold" data-a="ok">준비 완료</button></div>`);
         optGroup($('#oF', el), 'EHEH');
-        el.onclick = e => { if (e.target.dataset.a) { ready($('#oF', el).dataset.val); el.innerHTML = '<h2>준비 완료</h2><p><span class="spin"></span>곧 시작합니다…</p>'; } };
+        el.onclick = e => { if ((e.target.closest('[data-a]') || {dataset: {}}).dataset.a) { ready($('#oF', el).dataset.val); el.innerHTML = '<h2>준비 완료</h2><p><span class="spin"></span>곧 시작합니다…</p>'; } };
       } else if (d.t === 'ready' && this.host) {
         const c = this.cfg, formations = [];
         formations[c.mySide] = c.formation; formations[1 - c.mySide] = E.FORMATIONS[d.formation] ? d.formation : 'EHEH';
@@ -594,20 +598,14 @@
     };
     X.views.jg = new BoardView($('#miniJg'), 'jg', place);
     X.views.xq = new BoardView($('#miniXq'), 'xq', place);
-    $('#diffs').innerHTML = DIFFS.map(([h, j, x]) => `<div class="diff"><h4>${h}</h4><dl><dt class="j">장기</dt><dd>${j}</dd><dt class="x">상치</dt><dd>${x}</dd></dl></div>`).join('');
+    $('#diffs').innerHTML = DIFFS.map(([h, j, x], k) => `<div class="diff"><img src="./img/diff-${DIFF_IMG[k]}.png" alt="" loading="lazy"><h4>${h}</h4><dl><dt class="j">장기</dt><dd>${j}</dd><dt class="x">상치</dt><dd>${x}</dd></dl></div>`).join('');
     pickDemo('C');
   }
 
   /* ---------- 시작 ---------- */
-  function art(host, game, list) {
-    const svg = S('svg', { viewBox: '0 0 250 90' }, host);
-    list.forEach(([t, s], k) => { const o = S('g', { transform: `translate(${45 + k * 80},45)` }, svg); const g = S('g', { class: 'bob', style: `animation-delay:${-k * .9}s` }, o); drawPiece(g, game, { t, s }, 'hanja'); });
-  }
   function init() {
     // 그라디언트는 화면이 숨겨져도 쓰이도록 한 곳에 모아 둔다
     document.body.appendChild(H(`<svg width="0" height="0" style="position:absolute" aria-hidden="true">${DEFS}</svg>`));
-    art($('#artJg'), 'jg', [['R', 0], ['K', 1], ['C', 0]]);
-    art($('#artXq'), 'xq', [['R', 0], ['K', 1], ['C', 0]]);
     const fl = $('#floaters'), gl = '將帥車馬包炮象相士卒兵楚漢';
     for (let k = 0; k < 16; k++) {
       const s = document.createElement('span'); s.textContent = gl[(Math.random() * gl.length) | 0];
@@ -623,7 +621,7 @@
     });
     $('#btnJoin').onclick = () => Net.joinRoom($('#joinCode').value);
     $('#joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') Net.joinRoom($('#joinCode').value); });
-    const syncTools = () => { $('#btnLabel').textContent = prefs.label === 'hanja' ? '漢' : '한'; $('#btnSound').textContent = prefs.sound ? '🔊' : '🔇'; };
+    const syncTools = () => { $('#btnLabel').textContent = prefs.label === 'hanja' ? '漢' : '한'; $('#btnSound').innerHTML = IC(prefs.sound ? 'sound' : 'mute'); };
     $('#btnLabel').onclick = () => { prefs.label = prefs.label === 'hanja' ? 'hangul' : 'hanja'; savePrefs(); syncTools(); if (G.st) refresh(); paintDemo(); toast(prefs.label === 'hanja' ? '한자 표기' : '한글 표기'); };
     $('#btnSound').onclick = () => { prefs.sound = !prefs.sound; savePrefs(); syncTools(); };
     syncTools();
