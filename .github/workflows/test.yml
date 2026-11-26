@@ -12,3 +12,5 @@ jobs:
         with:
           node-version: 22
       - run: node --test janggi/test/engine.test.js
+      - run: python3 -m unittest test_engine.py
+        working-directory: janggi/python
