@@ -4,6 +4,7 @@
 
 실행:  python janggi_xiangqi.py
 필요한 것: 파이썬 3.8 이상 (tkinter 포함 — 윈도우용 파이썬에는 기본으로 들어 있음). 추가 설치 없음.
+그림: 이 파일 옆의 img 폴더에 있는 나무결·메달·아이콘 그림을 쓴다. img 폴더가 없어도 도형으로 그려서 실행된다.
 
 구성
   1) 규칙 엔진  : 두 게임의 기물 이동, 장군·외통, 빅장, 한수쉼, 반복·수 제한 판정
@@ -702,6 +703,11 @@ REASON = {
 CELL, PAD = 58, 40
 BW, BH = 8 * CELL + 2 * PAD, 9 * CELL + 2 * PAD
 FONT = 'Malgun Gothic'  # 윈도우 기본 한글 글꼴. 없으면 시스템 기본 글꼴로 표시된다.
+IMG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img')
+BG, PANEL, GOLD, TEXT, MUTE = '#131729', '#1d2240', '#e8c26a', '#f2ecdf', '#a9a59b'  # 화면 색
+AVATAR = {'jg': ['cho', 'han'], 'xq': ['red', 'black']}
+BTN_ICON = {'게임 선택 · 새 판': 'new', '무르기': 'undo', '힌트': 'hint', '한수쉼': 'pass', '판 뒤집기': 'flip', '기권': 'resign', '규칙 차이': 'book'}
+DIFF_IMG = ['board', 'kingpos', 'guard', 'elephant', 'cannon', 'soldier', 'palace', 'facing', 'pass', 'formation', 'first', 'shape', 'score']
 
 
 def sq_name(i):
@@ -732,6 +738,18 @@ def run_app(hook=None):
             self.net = None       # 온라인 방 상태 (없으면 None)
             self.net_gen = 0
 
+            # 그림 읽기 (PNG). 없거나 읽지 못하면 그 그림 없이 도형으로 그린다.
+            self.img = {}
+            if os.path.isdir(IMG_DIR):
+                for f in os.listdir(IMG_DIR):
+                    if f.endswith('.png'):
+                        try:
+                            self.img[f[:-4]] = tk.PhotoImage(file=os.path.join(IMG_DIR, f))
+                        except tk.TclError:
+                            pass
+            if 'icon' in self.img:
+                root.iconphoto(True, self.img['icon'])
+
             self.cv = tk.Canvas(root, width=BW, height=BH, highlightthickness=0, bg='#3a220c')
             self.cv.grid(row=0, column=0, padx=12, pady=12)
             self.cv.bind('<Button-1>', self.on_click)
@@ -744,8 +762,16 @@ def run_app(hook=None):
             self.turn_lbl.pack(anchor='w')
             self.sub = tk.Label(side, bg='#131729', fg='#a9a59b', font=(FONT, 10), wraplength=300, justify='left')
             self.sub.pack(anchor='w', pady=(0, 6))
-            self.caps = tk.Label(side, bg='#131729', fg='#f2ecdf', font=(FONT, 10), wraplength=300, justify='left')
-            self.caps.pack(anchor='w', pady=(0, 8))
+            self.prow = []  # 대국자 두 줄: 메달 그림 + 이름·점수·잡은 기물
+            for _ in (0, 1):
+                f = tk.Frame(side, bg=PANEL, padx=6, pady=4)
+                f.pack(fill='x', pady=2)
+                av = tk.Label(f, bg=PANEL)
+                av.pack(side='left')
+                tx = tk.Label(f, bg=PANEL, fg=TEXT, font=(FONT, 10), wraplength=250, justify='left', anchor='w')
+                tx.pack(side='left', padx=8, fill='x', expand=True)
+                self.prow.append((f, av, tx))
+            tk.Frame(side, bg=BG, height=6).pack()
 
             btns = tk.Frame(side, bg='#131729')
             btns.pack(fill='x')
@@ -753,19 +779,22 @@ def run_app(hook=None):
                      ('판 뒤집기', self.flip), ('기권', self.resign), ('한자/한글', self.toggle_label), ('규칙 차이', self.show_diffs)]
             self.btn = {}
             for k, (text, cmd) in enumerate(specs):
-                w = tk.Button(btns, text=text, command=cmd, font=(FONT, 10), width=12, relief='groove')
+                w = self.button(btns, text, cmd, BTN_ICON.get(text))
                 w.grid(row=k // 2, column=k % 2, padx=2, pady=2, sticky='ew')
                 self.btn[text] = w
+            btns.columnconfigure(0, weight=1, uniform='b')
+            btns.columnconfigure(1, weight=1, uniform='b')
 
             self.tip = tk.Label(side, bg='#1d2240', fg='#f2ecdf', font=(FONT, 10), wraplength=290, justify='left',
-                                padx=8, pady=8, anchor='nw', height=9)
+                                padx=8, pady=8, anchor='nw', height=7)
             self.tip.pack(fill='x', pady=8)
             tk.Label(side, text='기보', bg='#131729', fg='#a9a59b', font=(FONT, 9)).pack(anchor='w')
             box = tk.Frame(side, bg='#131729')
             box.pack(fill='both', expand=True)
             sb = tk.Scrollbar(box)
             sb.pack(side='right', fill='y')
-            self.hist = tk.Listbox(box, height=9, width=34, font=(FONT, 10), yscrollcommand=sb.set, activestyle='none')
+            self.hist = tk.Listbox(box, height=7, width=34, font=(FONT, 10), yscrollcommand=sb.set, activestyle='none',
+                                   bg=PANEL, fg=TEXT, selectbackground='#3a3f66', highlightthickness=0, borderwidth=0)
             self.hist.pack(side='left', fill='both', expand=True)
             sb.config(command=self.hist.yview)
 
@@ -773,6 +802,25 @@ def run_app(hook=None):
             root.after(60, self.poll)
             root.after(25000, self.keepalive)
             root.after(250, self.new_dialog)  # 켜자마자 어떤 게임을 둘지 고르게 한다
+
+        def center(self, win):
+            """작은 창을 본 창 한가운데에 놓는다."""
+            win.update_idletasks()
+            r = self.root
+            x = r.winfo_rootx() + (r.winfo_width() - win.winfo_width()) // 2
+            y = r.winfo_rooty() + (r.winfo_height() - win.winfo_height()) // 2
+            win.geometry('+%d+%d' % (max(0, x), max(0, y)))
+
+        def button(self, parent, text, cmd, icon=None, gold=False):
+            """어두운 바탕의 버튼. icon 이름의 그림이 있으면 글자 왼쪽에 붙인다."""
+            opt = dict(text=text, command=cmd, font=(FONT, 10, 'bold' if gold else 'normal'), relief='flat', cursor='hand2', padx=8, pady=5,
+                       bg=GOLD if gold else '#2a3058', fg='#24180a' if gold else TEXT, activebackground='#f3d68e' if gold else '#3a4170',
+                       activeforeground='#24180a' if gold else TEXT, disabledforeground='#6f7390', borderwidth=0, highlightthickness=0)
+            im = self.img.get('ic-' + icon) if icon and not gold else None  # 금색 버튼에는 금색 그림이 묻히므로 붙이지 않는다
+            if im is not None:
+                opt.update(image=im, compound='left')
+                opt['text'] = ' ' + text
+            return tk.Button(parent, **opt)
 
         # ---------------- 대국 진행 ----------------
         def start(self):
@@ -886,7 +934,7 @@ def run_app(hook=None):
 
         def flip(self):
             self.flipped = not self.flipped
-            self.draw()
+            self.refresh()
 
         def toggle_label(self):
             self.label = 'hangul' if self.label == 'hanja' else 'hanja'
@@ -913,15 +961,41 @@ def run_app(hook=None):
             if st.game == 'jg' and st.reason in ('score', 'movelimit'):
                 sc = score(st.board)
                 extra = '\n초 %s점 : 한 %s점' % (sc[0], sc[1])
-            messagebox.showinfo('대국 종료', head + '\n\n' + REASON.get(st.reason, '') + extra)
-            net = self.net
-            if self.cfg['mode'] == 'online' and net and net['started'] and net['peer'] and self.st is st:
-                if messagebox.askyesno('한 판 더', '같은 상대와 한 판 더 둘까요?') and self.net is net and self.st is st:
+            c, net = self.cfg, self.net
+            if st.winner is None:
+                pic = 'draw'
+            elif c['mode'] == 'local' or st.winner == c['side']:
+                pic = 'win'
+            else:
+                pic = 'lose'
+                head = '아쉽게 졌습니다 — ' + head
+            win = tk.Toplevel(self.root, bg=PANEL, padx=26, pady=18)
+            win.title('대국 종료')
+            win.transient(self.root)
+            win.resizable(False, False)
+            if 'result-' + pic in self.img:
+                tk.Label(win, image=self.img['result-' + pic], bg=PANEL).pack()
+            tk.Label(win, text=head, bg=PANEL, fg=GOLD, font=(FONT, 16, 'bold')).pack(pady=(6, 4))
+            tk.Label(win, text=REASON.get(st.reason, '') + extra, bg=PANEL, fg=TEXT, font=(FONT, 10), wraplength=320, justify='center').pack()
+            row = tk.Frame(win, bg=PANEL)
+            row.pack(pady=(14, 0))
+
+            def again():
+                win.destroy()
+                if self.st is not st:
+                    return
+                if c['mode'] != 'online':
+                    self.start()
+                elif self.net is net and net and net['started'] and net['peer']:
                     if net['role'] == 'host':
                         self.net_begin(dict(net['start']), announce=True)
                     else:
                         self.net_send({'t': 'rematch'})
                         self.sub.config(text='방장에게 한 판 더를 요청했습니다.')
+
+            self.button(row, '판 보기', win.destroy).pack(side='left', padx=4)
+            self.button(row, '한 판 더', again, gold=True).pack(side='left', padx=4)
+            self.center(win)
 
         # ---------------- 온라인 ----------------
         def net_send(self, d):
@@ -1108,7 +1182,10 @@ def run_app(hook=None):
             g = st.game
             ink = BOARD_INK[g]
             cv.delete('all')
-            cv.create_rectangle(8, 8, BW - 8, BH - 8, fill=BOARD_BG[g], outline='')
+            if 'board-' + g in self.img:
+                cv.create_image(0, 0, image=self.img['board-' + g], anchor='nw')   # 나무결 판
+            else:
+                cv.create_rectangle(8, 8, BW - 8, BH - 8, fill=BOARD_BG[g], outline='')
             X = lambda c: PAD + c * CELL
             Y = lambda r: PAD + r * CELL
             cv.create_rectangle(X(0) - 7, Y(0) - 7, X(8) + 7, Y(9) + 7, outline=ink, width=3)
@@ -1142,6 +1219,15 @@ def run_app(hook=None):
                 rad = 25 if g == 'xq' else (27 if t == 'K' else 20 if t in 'AP' else 24)
                 edge = '#ff2b2b' if i == chk else '#ffd76a' if i == self.sel or (last and last['to'] == i) else '#6b4416'
                 wid = 4 if edge != '#6b4416' else 2
+                pic = self.img.get('piece-%s-%d' % (g, rad))
+                if pic is not None:  # 나무결 기물 그림 + 강조 테두리
+                    cv.create_image(x, y, image=pic)
+                    if wid == 4:
+                        cv.create_oval(x - rad - 3, y - rad - 3, x + rad + 3, y + rad + 3, outline=edge, width=3)
+                    if g == 'xq':
+                        cv.create_oval(x - rad + 5, y - rad + 5, x + rad - 5, y + rad - 5, outline=INK[g][s])
+                    cv.create_text(x, y, text=names[g][s][t], fill=INK[g][s], font=(FONT, int(rad * 0.82), 'bold'))
+                    continue
                 cv.create_oval(x - rad + 2, y - rad + 4, x + rad + 2, y + rad + 4, fill='#3a2a12', outline='')  # 그림자
                 if g == 'xq':
                     cv.create_oval(x - rad, y - rad, x + rad, y + rad, fill='#f6e3b8', outline=edge, width=wid)
@@ -1204,13 +1290,19 @@ def run_app(hook=None):
                     sub = '방장의 준비를 기다리는 중…'
             self.sub.config(text=sub)
             names = GLYPH if self.label == 'hanja' else HANGUL
-            lines = []
             sc = score(st.board) if g == 'jg' else None
-            for s in (0, 1):
+            for row, s in enumerate((1, 0) if not self.flipped else (0, 1)):  # 판에 보이는 위·아래 순서대로
+                f, av, tx = self.prow[row]
                 got = ' '.join(names[g][p[1]][p[0]] for p in st.captured[s]) or '없음'
-                pts = ' · %s점' % sc[s] if sc else ''
-                lines.append('%s%s — 잡은 기물: %s' % (P[s][0], pts, got))
-            self.caps.config(text='\n'.join(lines))
+                who = ''
+                if c['mode'] == 'ai':
+                    who = ' (나)' if s == c['side'] else ' (AI)'
+                elif c['mode'] == 'online':
+                    who = ' (나)' if s == c['side'] else ' (상대)'
+                tx.config(text='%s(%s)%s%s\n잡은 기물: %s' % (P[s][0], P[s][1], who, ' · %s점' % sc[s] if sc else '', got),
+                          fg=GOLD if st.status == 'play' and st.turn == s else TEXT)
+                pic = self.img.get('av-' + ('ai' if c['mode'] == 'ai' and s != c['side'] else AVATAR[g][s]))
+                av.config(image=pic if pic is not None else '')
             self.btn['한수쉼'].config(state='normal' if g == 'jg' and self.my_turn() and st.can_pass() else 'disabled')
             self.btn['힌트'].config(state='normal' if self.my_turn() else 'disabled')
             self.btn['무르기'].config(state='normal' if st.moves and not self.thinking and c['mode'] != 'online' else 'disabled')
@@ -1232,7 +1324,7 @@ def run_app(hook=None):
         # ---------------- 창: 새 판 · 규칙 차이 ----------------
         def new_dialog(self):
             c = self.cfg
-            win = tk.Toplevel(self.root)
+            win = tk.Toplevel(self.root, bg=PANEL, padx=6, pady=6)
             win.title('게임 선택 · 새 판')
             win.transient(self.root)
             win.grab_set()
@@ -1241,18 +1333,19 @@ def run_app(hook=None):
                  'side': tk.IntVar(value=c['side']), 'f0': tk.StringVar(value=c['forms'][0]), 'f1': tk.StringVar(value=c['forms'][1])}
 
             def row(title, var, options):
-                tk.Label(win, text=title, font=(FONT, 10, 'bold'), anchor='w').pack(fill='x', padx=14, pady=(10, 2))
-                f = tk.Frame(win)
+                tk.Label(win, text=title, font=(FONT, 10, 'bold'), anchor='w', bg=PANEL, fg=GOLD).pack(fill='x', padx=14, pady=(10, 2))
+                f = tk.Frame(win, bg=PANEL)
                 f.pack(fill='x', padx=14)
                 for val, text in options:
-                    tk.Radiobutton(f, text=text, variable=var, value=val, font=(FONT, 10)).pack(side='left')
+                    tk.Radiobutton(f, text=text, variable=var, value=val, font=(FONT, 10), bg=PANEL, fg=TEXT, selectcolor='#0b0d17',
+                                   activebackground=PANEL, activeforeground=GOLD, highlightthickness=0).pack(side='left')
 
             row('게임', v['game'], [('jg', '한국 장기'), ('xq', '중국 상치')])
             row('방식', v['mode'], [('ai', 'AI와 대국'), ('local', '둘이서 (한 컴퓨터)'), ('host', '온라인 방 만들기'), ('join', '온라인 방 참가')])
-            f = tk.Frame(win)
+            f = tk.Frame(win, bg=PANEL)
             f.pack(fill='x', padx=14, pady=(4, 0))
-            tk.Label(f, text='참가할 방 코드 (6자리):', font=(FONT, 10)).pack(side='left')
-            code = tk.Entry(f, width=10, font=(FONT, 11, 'bold'))
+            tk.Label(f, text='참가할 방 코드 (6자리):', font=(FONT, 10), bg=PANEL, fg=TEXT).pack(side='left')
+            code = tk.Entry(f, width=10, font=(FONT, 11, 'bold'), bg='#0b0d17', fg=GOLD, insertbackground=GOLD, relief='flat')
             code.pack(side='left', padx=6)
             row('AI 난이도', v['level'], [(1, '쉬움'), (2, '보통'), (3, '어려움')])
             row('내 진영 (AI 대국 · 방 만들기)', v['side'], [(0, '먼저 (초 · 홍)'), (1, '나중 (한 · 흑)')])
@@ -1260,7 +1353,7 @@ def run_app(hook=None):
             row('장기 상차림 — 나 (둘이서: 초)', v['f0'], forms)
             row('장기 상차림 — 상대 (AI · 둘이서: 한)', v['f1'], forms)
             tk.Label(win, text='상차림은 각자 자기 왼쪽부터 마·상을 놓는 순서입니다.\n온라인 방 참가에서는 게임과 진영을 방장이 정합니다.',
-                     font=(FONT, 9), fg='#666', justify='left').pack(padx=14, anchor='w')
+                     font=(FONT, 9), fg=MUTE, bg=PANEL, justify='left').pack(padx=14, pady=(6, 0), anchor='w')
 
             def go():
                 mode, side, f0, f1 = v['mode'].get(), v['side'].get(), v['f0'].get(), v['f1'].get()
@@ -1285,23 +1378,27 @@ def run_app(hook=None):
                 win.destroy()
                 self.start()
 
-            f = tk.Frame(win)
+            f = tk.Frame(win, bg=PANEL)
             f.pack(pady=14)
-            tk.Button(f, text='대국 시작', command=go, font=(FONT, 10, 'bold'), width=12).pack(side='left', padx=4)
-            tk.Button(f, text='취소', command=win.destroy, font=(FONT, 10), width=8).pack(side='left', padx=4)
+            self.button(f, '대국 시작', go, gold=True).pack(side='left', padx=4)
+            self.button(f, '취소', win.destroy).pack(side='left', padx=4)
+            self.center(win)
 
         def show_diffs(self):
-            win = tk.Toplevel(self.root)
+            win = tk.Toplevel(self.root, bg=BG, padx=12, pady=10)
             win.title('한국 장기와 중국 상치의 규칙 차이')
             win.transient(self.root)
-            for col, head in enumerate(('', '한국 장기', '중국 상치')):
-                tk.Label(win, text=head, font=(FONT, 10, 'bold'), padx=8, pady=6).grid(row=0, column=col, sticky='w')
+            for col, (head, fg) in enumerate((('', TEXT), ('', TEXT), ('한국 장기', '#2fbf8a'), ('중국 상치', '#ff7a7a'))):
+                tk.Label(win, text=head, font=(FONT, 11, 'bold'), bg=BG, fg=fg, padx=8, pady=6).grid(row=0, column=col, sticky='w')
             for k, (h, j, x) in enumerate(DIFFS, start=1):
-                bg = '#f4efe2' if k % 2 else '#ffffff'
-                for col, text in enumerate((h, j, x)):
-                    tk.Label(win, text=text, font=(FONT, 10, 'bold' if col == 0 else 'normal'), bg=bg, padx=8, pady=4,
-                             anchor='w', justify='left', wraplength=260).grid(row=k, column=col, sticky='nsew')
-            tk.Button(win, text='닫기', command=win.destroy, font=(FONT, 10), width=8).grid(row=len(DIFFS) + 1, column=0, columnspan=3, pady=10)
+                bg = PANEL if k % 2 else '#171b33'
+                pic = self.img.get('diff-' + DIFF_IMG[k - 1])
+                tk.Label(win, image=pic if pic is not None else '', bg=bg, padx=4).grid(row=k, column=0, sticky='nsew')
+                for col, text in enumerate((h, j, x), start=1):
+                    tk.Label(win, text=text, font=(FONT, 10, 'bold' if col == 1 else 'normal'), bg=bg, fg=GOLD if col == 1 else TEXT, padx=8, pady=5,
+                             anchor='w', justify='left', wraplength=250).grid(row=k, column=col, sticky='nsew')
+            self.button(win, '닫기', win.destroy).grid(row=len(DIFFS) + 1, column=0, columnspan=4, pady=10)
+            self.center(win)
 
     root = tk.Tk()
     app = App(root)
