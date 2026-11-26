@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>장기 × 象棋 — 한국 장기와 중국 상치</title>
+  <meta name="description" content="한국 장기와 중국 상치(象棋)를 함께 두고, 규칙 차이를 직접 눌러 보며 배우는 웹앱">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div id="floaters"></div></div>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <header class="top">
+    <button class="brand" data-go="home"><span class="seal">將</span><span>장기 <i>×</i> 象棋</span></button>
+    <nav>
+      <button class="tab on" data-go="home">대국</button>
+      <button class="tab" data-go="compare">차이점 배우기</button>
+      <button class="tab" data-go="game" id="tabGame" hidden>진행 중인 판</button>
+    </nav>
+    <div class="tools">
+      <button class="icon" id="btnLabel" title="한자/한글 표기 바꾸기">漢</button>
+      <button class="icon" id="btnSound" title="소리 켜기/끄기">🔊</button>
+    </div>
+  </header>
+
+  <!-- 홈 -->
+  <main id="home" class="screen on">
+    <section class="hero">
+      <p class="eyebrow">같은 뿌리, 다른 규칙</p>
+      <h1><span class="t-jg">한국 장기</span><span class="vs">vs</span><span class="t-xq">중국 상치</span></h1>
+      <p class="lead">둘 다 9×10 판에서 왕을 잡는 놀이지만, 포·상·졸이 움직이는 법부터 궁성까지 꽤 다릅니다.<br>직접 두어 보고, 나란히 놓고 비교해 보세요.</p>
+    </section>
+    <section class="picks">
+      <article class="pick jg" data-game="jg">
+        <div class="pick-art" id="artJg"></div>
+        <h2>한국 장기 <small>將棋 · Janggi</small></h2>
+        <ul><li>강이 없는 판, 궁성 한가운데의 왕</li><li>넘어야만 움직이는 포</li><li>한수쉼 · 빅장 · 점수제</li></ul>
+        <div class="row">
+          <button class="btn gold" data-start="ai">🤖 AI와 대국</button>
+          <button class="btn" data-start="local">👥 둘이서</button>
+          <button class="btn" data-start="online">🌐 온라인</button>
+        </div>
+      </article>
+      <article class="pick xq" data-game="xq">
+        <div class="pick-art" id="artXq"></div>
+        <h2>중국 상치 <small>象棋 · Xiangqi</small></h2>
+        <ul><li>초하한계(楚河漢界), 강이 흐르는 판</li><li>차처럼 달리고 넘어서 잡는 포</li><li>왕끼리 마주 볼 수 없는 비장 규칙</li></ul>
+        <div class="row">
+          <button class="btn gold" data-start="ai">🤖 AI와 대국</button>
+          <button class="btn" data-start="local">👥 둘이서</button>
+          <button class="btn" data-start="online">🌐 온라인</button>
+        </div>
+      </article>
+    </section>
+    <section class="joinbar">
+      <span>친구에게 방 코드를 받았나요?</span>
+      <input id="joinCode" maxlength="6" placeholder="방 코드 6자리" autocomplete="off">
+      <button class="btn gold" id="btnJoin">참가하기</button>
+      <button class="btn ghost" data-go="compare">📖 차이점부터 볼래요</button>
+    </section>
+  </main>
+
+  <!-- 비교 -->
+  <main id="compare" class="screen">
+    <section class="hero small">
+      <p class="eyebrow">차이점 배우기</p>
+      <h1>기물을 골라 나란히 비교</h1>
+      <p class="lead">기물을 고르면 두 판에서 갈 수 있는 자리가 동시에 표시됩니다. 판의 빈 곳을 누르면 기물이 그 자리로 옮겨집니다.</p>
+    </section>
+    <div class="chips" id="pieceChips"></div>
+    <section class="duo">
+      <div class="duo-card jg"><h3><span class="dot"></span>한국 장기</h3><div class="mini" id="miniJg"></div><p id="descJg"></p></div>
+      <div class="duo-card xq"><h3><span class="dot"></span>중국 상치</h3><div class="mini" id="miniXq"></div><p id="descXq"></p></div>
+    </section>
+    <p class="legend"><span class="lg move"></span>이동할 수 있는 자리 <span class="lg cap"></span>잡을 수 있는 기물</p>
+    <section class="hero small"><h1>한눈에 보는 규칙 차이</h1></section>
+    <section class="diffs" id="diffs"></section>
+  </main>
+
+  <!-- 게임 -->
+  <main id="game" class="screen">
+    <div class="game">
+      <div class="board-col">
+        <div class="pbar" id="pTop"></div>
+        <div class="board-wrap"><div id="board"></div><div class="shout" id="shout"></div></div>
+        <div class="pbar" id="pBot"></div>
+      </div>
+      <aside class="side">
+        <div class="card status"><div class="gname" id="gName"></div><div class="turn" id="turnTxt"></div><div class="sub" id="subTxt"></div></div>
+        <div class="card controls">
+          <button class="btn" id="btnUndo">↩ 무르기</button>
+          <button class="btn" id="btnHint">💡 힌트</button>
+          <button class="btn" id="btnPass">⏸ 한수쉼</button>
+          <button class="btn" id="btnFlip">⇅ 판 뒤집기</button>
+          <button class="btn" id="btnResign">🏳 기권</button>
+          <button class="btn gold" id="btnAgain">↻ 새 판</button>
+        </div>
+        <div class="card tip" id="tip"><b>기물을 눌러 보세요</b><p>갈 수 있는 자리가 표시되고, 이 기물이 두 게임에서 어떻게 다른지 알려 드려요.</p></div>
+        <div class="card hist"><h4>기보</h4><ol id="hist"></ol></div>
+        <div class="card chat" id="chat" hidden>
+          <h4>대화</h4><div id="chatLog"></div>
+          <div class="emo"><button>👍</button><button>😄</button><button>😱</button><button>🤔</button><button>👏</button><button>🙏</button></div>
+          <form id="chatForm"><input id="chatIn" maxlength="120" placeholder="메시지 보내기" autocomplete="off"><button class="btn gold">전송</button></form>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="modal" id="modal" hidden><div class="sheet" id="sheet"></div></div>
+  <div id="toasts"></div>
+
+  <script src="./engine.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
