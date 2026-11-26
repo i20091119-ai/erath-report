@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>장기 × 象棋 — 한국 장기와 중국 상치</title>
   <meta name="description" content="한국 장기와 중국 상치(象棋)를 함께 두고, 규칙 차이를 직접 눌러 보며 배우는 웹앱">
-  <link rel="icon" type="image/png" href="./img/icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0b0d17">
+  <link rel="icon" type="image/png" href="./img/icon-192.png">
   <link rel="apple-touch-icon" href="./img/icon-180.png">
   <meta property="og:title" content="장기 × 象棋">
   <meta property="og:description" content="한국 장기와 중국 상치를 함께 두고 차이를 배우는 웹앱">
@@ -23,13 +25,13 @@
     <button class="brand" data-go="home"><span class="seal">將</span><span>장기 <i>×</i> 象棋</span></button>
     <nav>
       <button class="tab on" data-go="home">대국</button>
-      <button class="tab" data-go="compare">차이점 배우기</button>
-      <button class="tab" data-go="game" id="tabGame" hidden>진행 중인 판</button>
+      <button class="tab" data-go="compare">배우기</button>
+      <button class="tab" data-go="game" id="tabGame" hidden>대국 중</button>
     </nav>
     <div class="tools">
       <img class="crest" src="../assets/logo/cnue-shield.png" alt="진주교육대학교" width="596" height="651">
-      <button class="icon" id="btnLabel" title="한자/한글 표기 바꾸기">漢</button>
-      <button class="icon" id="btnSound" title="소리 켜기/끄기">🔊</button>
+      <button class="icon" id="btnLabel" title="한자/한글 표기 바꾸기" aria-label="한자/한글 표기 바꾸기">漢</button>
+      <button class="icon" id="btnSound" title="소리 켜기/끄기" aria-label="소리 켜기/끄기">🔊</button>
     </div>
   </header>
 
@@ -147,6 +149,7 @@
 
   <div class="modal" id="modal" hidden><div class="sheet" id="sheet"></div></div>
   <div id="toasts"></div>
+  <div id="sr" class="sr" aria-live="polite"></div>
 
   <script src="./config.js"></script>
   <script src="./engine.js"></script>

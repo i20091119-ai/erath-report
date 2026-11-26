@@ -177,6 +177,14 @@ svg.bd { display: block; width: 100%; height: auto; border-radius: 13px; touch-a
 .credit .pill { display: inline-flex; padding: 8px 16px; border-radius: 999px; background: #fffaf2; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
 .credit .pill img { height: 24px; width: auto; display: block; }
 
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+svg.bd.drag-on { touch-action: none; }
+svg.bd:focus { outline: none; } svg.bd:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+.piece.drag { transition: none; cursor: grabbing; }
+.piece.drag .body { filter: drop-shadow(0 12px 10px rgba(0, 0, 0, .55)); }
+.kbcur { fill: none; stroke: #fff; stroke-width: 3; stroke-dasharray: 8 5; pointer-events: none; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
 /* 모달 */
 .modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(4, 5, 10, .72); backdrop-filter: blur(7px); animation: fade .25s; }
 .sheet { width: min(520px, 100%); max-height: 92vh; overflow: auto; padding: 24px; border-radius: 24px; background: linear-gradient(160deg, #1d2240, #11142a); border: 1px solid rgba(232, 194, 106, .35); box-shadow: 0 40px 90px -20px #000; }
@@ -197,7 +205,9 @@ svg.bd { display: block; width: 100%; height: auto; border-radius: 13px; touch-a
   .board-col { max-width: 560px; }
   .duo { grid-template-columns: 1fr; }
   .lesson { grid-template-columns: 1fr; }
-  .top { padding: 8px 10px; gap: 6px; } .brand span:last-child { display: none; } .tools .crest { display: none; }
+  .top { padding: 8px 10px; gap: 4px; } .brand span:last-child { display: none; }
+  .top nav { margin-left: 2px; gap: 2px; } .tab { padding: 7px 10px; font-size: 14px; }
+  .icon { width: 34px; height: 34px; } .tools .crest { display: none; }
   .screen { padding: 14px 10px 60px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before { animation-duration: .01s !important; transition-duration: .01s !important; } }

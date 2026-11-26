@@ -120,20 +120,79 @@
   /* ---------- 판 ---------- */
   const CELL = 64, PAD = 46, BW = 8 * CELL + 2 * PAD, BH = 9 * CELL + 2 * PAD;
   class BoardView {
-    constructor(host, game, onPoint) {
-      this.game = game; this.flipped = false; this.els = new Map(); this.label = prefs.label;
+    // opts.drag: 끌어서 놓기 사용, opts.onCursor(i): 키보드 커서가 옮겨질 때 호출
+    constructor(host, game, onPoint, opts) {
+      opts = opts || {};
+      this.game = game; this.flipped = false; this.els = new Map(); this.label = prefs.label; this.board = []; this.cursor = null;
       host.innerHTML = '';
-      const svg = this.svg = S('svg', { class: 'bd', viewBox: `0 0 ${BW} ${BH}` }, host);
+      const svg = this.svg = S('svg', { class: 'bd' + (opts.drag ? ' drag-on' : ''), viewBox: `0 0 ${BW} ${BH}` }, host);
       this.drawBoard();
-      this.gLast = S('g', {}, svg); this.gPieces = S('g', {}, svg); this.gHint = S('g', {}, svg);
-      if (onPoint) svg.addEventListener('click', (ev) => {
+      this.gLast = S('g', {}, svg); this.gPieces = S('g', {}, svg); this.gHint = S('g', {}, svg); this.gCur = S('g', {}, svg);
+      if (!onPoint) return;
+      const where = ev => { // 화면 좌표 → 판 좌표와 가장 가까운 교차점
         const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
         const q = pt.matrixTransform(svg.getScreenCTM().inverse());
         let c = Math.round((q.x - PAD) / CELL), r = Math.round((q.y - PAD) / CELL);
-        if (c < 0 || c > 8 || r < 0 || r > 9) return;
+        const inside = c >= 0 && c <= 8 && r >= 0 && r <= 9;
         if (this.flipped) { r = 9 - r; c = 8 - c; }
-        onPoint(r * 9 + c);
+        return { x: q.x, y: q.y, i: inside ? r * 9 + c : -1 };
+      };
+      if (!opts.drag) svg.addEventListener('click', ev => { const w = where(ev); if (w.i >= 0) onPoint(w.i); });
+      else {
+        let d = null; // 누르고 있는 동안의 상태
+        svg.addEventListener('pointerdown', ev => {
+          if (ev.button) return;
+          const w = where(ev); if (w.i < 0) return;
+          const p = this.board[w.i];
+          d = { i: w.i, x: w.x, y: w.y, el: p ? this.els.get(p.id) : null, moved: false, id: ev.pointerId };
+          try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* 무시 */ }
+        });
+        svg.addEventListener('pointermove', ev => {
+          if (!d || ev.pointerId !== d.id || !d.el) return;
+          const w = where(ev);
+          if (!d.moved) {
+            if (Math.hypot(w.x - d.x, w.y - d.y) < 10) return;
+            d.moved = true; onPoint(d.i); // 끌기 시작 = 그 기물 선택
+            const p = this.board[d.i]; d.el = p ? this.els.get(p.id) : null;
+            if (!d.el || !d.el.classList.contains('sel')) { d.el = null; return; } // 내 기물이 아니면 끌지 않음
+            d.el.classList.add('drag'); this.gPieces.appendChild(d.el);
+          }
+          d.el.style.transform = `translate(${w.x}px,${w.y}px) scale(1.12)`;
+        });
+        const end = ev => {
+          if (!d || ev.pointerId !== d.id) return;
+          const w = where(ev), was = d; d = null;
+          if (!was.moved) { if (ev.type === 'pointerup' && w.i >= 0) onPoint(w.i); return; }
+          if (!was.el) return;
+          was.el.classList.remove('drag');
+          const [x, y] = this.xy(was.i); was.el.style.transform = `translate(${x}px,${y}px)`; // 못 두는 곳이면 제자리로
+          if (ev.type === 'pointerup' && w.i >= 0 && w.i !== was.i) onPoint(w.i);
+        };
+        svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+      }
+      // 키보드: 방향키로 커서를 옮기고 Enter·Space로 고른다
+      svg.setAttribute('tabindex', '0'); svg.setAttribute('role', 'application');
+      svg.setAttribute('aria-label', `${GNAME[game]} 판. 방향키로 자리를 옮기고 Enter로 기물을 고르거나 둡니다.`);
+      svg.addEventListener('keydown', ev => {
+        const mv = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[ev.key];
+        if (this.cursor == null) this.cursor = this.flipped ? 4 : 85;
+        if (mv) {
+          const f = this.flipped ? -1 : 1;
+          const r = Math.max(0, Math.min(9, ((this.cursor / 9) | 0) + mv[0] * f)), c = Math.max(0, Math.min(8, this.cursor % 9 + mv[1] * f));
+          this.cursor = r * 9 + c; this.drawCursor();
+          if (opts.onCursor) opts.onCursor(this.cursor);
+        } else if (ev.key === 'Enter' || ev.key === ' ') { onPoint(this.cursor); this.drawCursor(); }
+        else return;
+        ev.preventDefault();
       });
+      svg.addEventListener('focus', () => { if (this.cursor == null) this.cursor = this.flipped ? 4 : 85; this.drawCursor(); });
+      svg.addEventListener('blur', () => { this.gCur.innerHTML = ''; });
+    }
+    drawCursor() {
+      this.gCur.innerHTML = '';
+      if (this.cursor == null || document.activeElement !== this.svg) return;
+      const [x, y] = this.xy(this.cursor);
+      S('rect', { x: x - 30, y: y - 30, width: 60, height: 60, rx: 10, class: 'kbcur' }, this.gCur);
     }
     xy(i) {
       let r = (i / 9) | 0, c = i % 9;
@@ -167,7 +226,7 @@
     }
     // marks: {sel, targets:[idx], last:{from,to}, chk, hint:{from,to}}
     update(board, marks) {
-      marks = marks || {};
+      marks = marks || {}; this.board = board;
       if (this.label !== prefs.label) { this.label = prefs.label; this.els.forEach(e => e.remove()); this.els.clear(); }
       const alive = new Set();
       for (let i = 0; i < 90; i++) {
@@ -176,7 +235,7 @@
         let el = this.els.get(p.id);
         if (!el) { el = S('g', { class: 'piece' }, this.gPieces); drawPiece(el, this.game, p, this.label); this.els.set(p.id, el); }
         const [x, y] = this.xy(i);
-        el.style.transform = `translate(${x}px,${y}px)`;
+        if (!el.classList.contains('drag')) el.style.transform = `translate(${x}px,${y}px)`;
         el.classList.toggle('sel', marks.sel === i);
         el.classList.toggle('chk', marks.chk === i);
         if (marks.sel === i || (marks.last && marks.last.to === i)) this.gPieces.appendChild(el);
@@ -197,17 +256,24 @@
       if (marks.hint) for (const i of [marks.hint.from, marks.hint.to]) {
         const [x, y] = this.xy(i); S('circle', { cx: x, cy: y, r: 34, class: 'aihint' }, this.gHint);
       }
+      this.drawCursor();
     }
   }
 
   /* ---------- 공통 UI ---------- */
+  function say(msg) { const el = $('#sr'); if (el) { el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 30); } }
+  const sqName = i => 'abcdefghi'[i % 9] + (10 - ((i / 9) | 0));
   function toast(msg) { const t = H(`<div class="toast"></div>`); t.textContent = msg; $('#toasts').appendChild(t); setTimeout(() => t.remove(), 3300); }
   function go(name) {
     $$('.screen').forEach(s => s.classList.toggle('on', s.id === name));
     $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.go === name));
     window.scrollTo({ top: 0 });
   }
-  function modal(html) { $('#sheet').innerHTML = html; $('#modal').hidden = false; return $('#sheet'); }
+  function modal(html) {
+    $('#sheet').innerHTML = html; $('#modal').hidden = false;
+    const b = $('#sheet .btn.gold') || $('#sheet button'); if (b) b.focus(); // 키보드로 바로 고를 수 있게
+    return $('#sheet');
+  }
   function closeModal() { $('#modal').hidden = true; }
   // 선택지 묶음: 버튼 하나만 켜짐
   function optGroup(el, initial, onChange) {
@@ -242,7 +308,13 @@
     G.cfg = cfg; G.gen++; G.sel = null; G.targets = []; G.hint = null; G.thinking = false; G.review = null;
     G.st = E.create(cfg.game, cfg.formations);
     G.clk = cfg.clock ? [cfg.clock * 60000, cfg.clock * 60000] : null; G.lastTick = Date.now();
-    G.view = new BoardView($('#board'), cfg.game, onPoint);
+    G.view = new BoardView($('#board'), cfg.game, onPoint, {
+      drag: true,
+      onCursor: i => {
+        const p = viewSt().board[i], g = G.st.game;
+        say(`${sqName(i)} ${p ? PLAYER[g][p.s].n + ' ' + PNAME[p.t].split(' ')[0] : '빈 자리'}${G.targets.includes(i) ? ', 둘 수 있는 자리' : ''}`);
+      }
+    });
     G.view.flipped = cfg.mode !== 'local' && cfg.mySide === 1;
     $('#tabGame').hidden = false;
     $('#chat').hidden = cfg.mode !== 'online';
@@ -276,6 +348,7 @@
     else if (rec.cap) sfx.cap(); else sfx.move();
     if (st.game === 'jg' && st.status === 'play' && st.bikjangBy === rec.side && !rec.check) shout('빅장!');
     if (rec.pass) toast(`${PLAYER[st.game][rec.side].n} — 한수쉼`);
+    say(rec.pass ? `${PLAYER[st.game][rec.side].n} 한수쉼` : `${PLAYER[st.game][rec.side].n} ${PNAME[rec.piece.t].split(' ')[0]} ${sqName(rec.from)}에서 ${sqName(rec.to)}${rec.cap ? ', ' + PNAME[rec.cap.t].split(' ')[0] + ' 잡음' : ''}${rec.check ? ', 장군' : ''}`);
     refresh();
     if (st.status === 'over') return setTimeout(showOver, 750);
     if (G.cfg.mode === 'ai' && st.turn !== G.cfg.mySide) aiTurn();
@@ -851,6 +924,7 @@
     $('#btnResume').onclick = resume;
     $('#btnForget').onclick = () => { try { localStorage.removeItem('jgxq-save'); } catch (e) { /* 무시 */ } showResume(); };
     showResume();
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('./sw.js').catch(() => { /* 오프라인 기능 없이 계속 */ });
     $('#joinCode').addEventListener('keydown', e => { if (e.key === 'Enter') Net.joinRoom($('#joinCode').value); });
     const syncTools = () => { $('#btnLabel').textContent = prefs.label === 'hanja' ? '漢' : '한'; $('#btnSound').innerHTML = IC(prefs.sound ? 'sound' : 'mute'); };
     $('#btnLabel').onclick = () => { prefs.label = prefs.label === 'hanja' ? 'hangul' : 'hanja'; savePrefs(); syncTools(); if (G.st) refresh(); paintDemo(); if (API.onLabel) API.onLabel(); toast(prefs.label === 'hanja' ? '한자 표기' : '한글 표기'); };
