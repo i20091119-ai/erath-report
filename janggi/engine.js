@@ -311,14 +311,17 @@
   function nega(b, g, side, depth, alpha, beta, ply, ctx) {
     if ((++ctx.nodes & 2047) === 0 && Date.now() > ctx.deadline) ctx.abort = true;
     if (ctx.abort) return 0;
-    if (depth <= 0) return quiesce(b, g, side, alpha, beta, 3);
+    if (depth <= 0) {
+      const q = quiesce(b, g, side, alpha, beta, 3);
+      return q >= WIN ? WIN - ply * 100 : q <= -WIN ? -WIN + ply * 100 : q; // 왕을 잡는 결과는 가까울수록 값이 크게
+    }
     const ms = ordered(b, g, side, false);
-    let best = g === 'xq' ? -WIN + ply : evalBoard(b, g, side);
+    let best = g === 'xq' ? -WIN + ply * 100 : evalBoard(b, g, side);
     if (!ms.length) return best;
     best = -Infinity;
     for (const m of ms) {
       const cap = b[m.to];
-      if (cap && cap.t === 'K') return WIN - ply;
+      if (cap && cap.t === 'K') return WIN - ply * 100; // 빠른 승리를 뚜렷하게 선호 (무작위 흔들림보다 크게)
       b[m.to] = b[m.from]; b[m.from] = null;
       const v = -nega(b, g, 1 - side, depth - 1, -beta, -alpha, ply + 1, ctx);
       b[m.from] = b[m.to]; b[m.to] = cap;
