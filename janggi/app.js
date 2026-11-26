@@ -240,6 +240,7 @@
   function startGame(cfg) {
     G.cfg = cfg; G.gen++; G.sel = null; G.targets = []; G.hint = null; G.thinking = false;
     G.st = E.create(cfg.game, cfg.formations);
+    G.clk = cfg.clock ? [cfg.clock * 60000, cfg.clock * 60000] : null; G.lastTick = Date.now();
     G.view = new BoardView($('#board'), cfg.game, onPoint);
     G.view.flipped = cfg.mode !== 'local' && cfg.mySide === 1;
     $('#tabGame').hidden = false;
@@ -278,15 +279,47 @@
     if (G.cfg.mode === 'ai' && st.turn !== G.cfg.mySide) aiTurn();
   }
 
+  // AI 계산은 워커에서 돌려 화면이 멈추지 않게 한다 (워커를 못 쓰면 그 자리에서 계산)
+  let aiW = null, aiSeq = 0; const aiWait = new Map();
+  function think(level, budget) {
+    const st = G.st, local = () => E.bestMove(st, level, Math.min(budget, 1200));
+    if (aiW === null) {
+      try {
+        aiW = new Worker('./ai-worker.js');
+        aiW.onmessage = e => { const r = aiWait.get(e.data.id); aiWait.delete(e.data.id); if (r) r(e.data.mv); };
+        aiW.onerror = () => { aiW = false; aiWait.forEach(r => r(undefined)); aiWait.clear(); };
+      } catch (e) { aiW = false; }
+    }
+    if (!aiW) return new Promise(res => setTimeout(() => res(local()), 30));
+    return new Promise(res => {
+      const id = ++aiSeq;
+      aiWait.set(id, mv => res(mv === undefined ? local() : mv));
+      aiW.postMessage({ id, game: st.game, formations: st.formations, opts: st.opts, level, budget, moves: st.moves.map(m => ({ from: m.from, to: m.to, pass: m.pass })) });
+    });
+  }
   function aiTurn() {
-    const gen = G.gen; G.thinking = true; refresh();
-    setTimeout(() => {
-      if (gen !== G.gen) return;
-      const mv = E.bestMove(G.st, G.cfg.level);
+    const gen = G.gen, t0 = Date.now(); G.thinking = true; refresh();
+    think(G.cfg.level, [0, 300, 900, 2500][G.cfg.level]).then(mv => setTimeout(() => {
+      if (gen !== G.gen || G.st.status !== 'play') return;
       G.thinking = false;
       if (mv) doMove(mv); else refresh();
-    }, 420);
+    }, Math.max(0, 450 - (Date.now() - t0))));
   }
+
+  /* 제한 시간 */
+  const fmtClk = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${(s / 60) | 0}:${String(s % 60).padStart(2, '0')}`; };
+  setInterval(() => {
+    const now = Date.now(), dt = now - (G.lastTick || now); G.lastTick = now;
+    if (!G.st || !G.clk || G.st.status !== 'play' || G.review != null) return;
+    const side = G.st.turn;
+    G.clk[side] -= dt;
+    $$('.clk').forEach(el => { const s = +el.dataset.side; el.textContent = fmtClk(G.clk[s]); el.classList.toggle('low', G.clk[s] < 30000); });
+    if (G.clk[side] <= 0 && (G.cfg.mode !== 'online' || side === G.cfg.mySide)) {
+      G.gen++; G.thinking = false;
+      if (G.cfg.mode === 'online') Net.send({ t: 'timeout' });
+      finish(1 - side, 'time');
+    }
+  }, 250);
 
   function shout(txt) { const el = $('#shout'); el.textContent = txt; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); }
 
@@ -317,7 +350,7 @@
       const av = c.mode === 'ai' && side !== c.mySide ? 'ai' : AVATAR[g][side];
       el.innerHTML = `<img class="av" src="./img/av-${av}.png" alt="${P[side].h}"><div class="nm" style="color:var(--text)">${P[side].n}<small>${roleName(side)}</small></div>` +
         `<div class="caps">${st.captured[side].map(p => `<span class="cp" style="color:${INK[g][p.s]}">${GLYPH[prefs.label][g][p.s][p.t]}</span>`).join('')}</div>` +
-        (sc ? `<div class="pts">${sc[side]}점</div>` : '');
+        (sc ? `<div class="pts">${sc[side]}점</div>` : '') + (G.clk ? `<div class="clk${G.clk[side] < 30000 ? ' low' : ''}" data-side="${side}">${fmtClk(G.clk[side])}</div>` : '');
     };
     const top = G.view.flipped ? 0 : 1;
     bar($('#pTop'), top); bar($('#pBot'), 1 - top);
@@ -354,6 +387,10 @@
       bikjang: '빅장을 풀지 않아 무승부가 되었어요. (상치에서는 왕이 마주 보는 것 자체가 금지예요.)',
       score: `두 사람 모두 쉬어서 점수로 승부를 가렸어요. 초 ${sc[0]}점 : 한 ${sc[1]}점`,
       repetition: '같은 모양이 세 번 반복되어 무승부가 되었어요.',
+      perpetual: '같은 모양이 세 번 반복되었는데, 한쪽만 계속 장군을 불렀어요. 장군을 되풀이한 쪽이 집니다.',
+      movelimit: `${E.JG_MOVE_LIMIT}수를 넘겨 점수로 승부를 가렸어요. 초 ${sc[0]}점 : 한 ${sc[1]}점`,
+      nocapture: `${E.XQ_QUIET_LIMIT}수 동안 잡은 기물이 없어 무승부가 되었어요.`,
+      time: '제한 시간이 다 되었어요.', agreed: '서로 합의해서 무승부로 끝냈어요.',
       resign: '기권으로 대국이 끝났어요.', left: '상대가 나가서 대국이 끝났어요.'
     }[st.reason];
     const iWon = st.winner != null && (c.mode === 'local' || st.winner === c.mySide);
@@ -386,9 +423,14 @@
   };
   $('#btnHint').onclick = () => {
     if (!myTurn()) return;
-    const mv = E.bestMove(G.st, 2);
-    if (!mv || mv.pass) return toast('지금은 한수쉼이 좋아 보여요');
-    G.hint = mv; G.sel = null; G.targets = []; paint();
+    const gen = G.gen, n = G.st.moves.length;
+    $('#btnHint').disabled = true;
+    think(2, 700).then(mv => {
+      if (gen !== G.gen || n !== G.st.moves.length) return;
+      $('#btnHint').disabled = !myTurn();
+      if (!mv || mv.pass) return toast('지금은 한수쉼이 좋아 보여요');
+      G.hint = mv; G.sel = null; G.targets = []; paint();
+    });
   };
   $('#btnPass').onclick = () => { if (myTurn() && !G.st.check) doMove({ pass: true }); };
   $('#btnFlip').onclick = () => { G.view.flipped = !G.view.flipped; refresh(); };
@@ -408,22 +450,23 @@
     const sideOpts = opts('oSide', [[0, `${P[0].n}(${P[0].h}) · 먼저`], [1, `${P[1].n}(${P[1].h}) · 나중`]]);
     let html = `<h2>${GNAME[game]}</h2><p>${{ ai: 'AI와 한 판 둡니다.', local: '한 기기에서 둘이 번갈아 둡니다.', online: '방을 만들고 친구에게 코드를 알려 주세요.' }[mode]}</p>`;
     if (mode === 'ai') html += `<h5>난이도</h5>${opts('oLevel', [[1, '쉬움'], [2, '보통'], [3, '어려움']])}`;
+    html += `<h5>제한 시간 <span style="color:var(--mute);letter-spacing:0">— 한 사람이 쓸 수 있는 시간</span></h5>${opts('oClock', [[0, '없음'], [5, '5분'], [10, '10분'], [20, '20분']])}`;
     if (mode !== 'local') html += `<h5>내 진영</h5>${sideOpts}`;
     if (jg && mode === 'local') html += `<h5>초(楚) 상차림</h5>${formOpts('oF0')}<h5>한(漢) 상차림</h5>${formOpts('oF1')}`;
     else if (jg) html += `<h5>내 상차림 <span style="color:var(--mute);letter-spacing:0">— 내 왼쪽부터 마·상의 순서</span></h5>${formOpts('oF0')}`;
     html += `<div class="foot"><button class="btn" data-a="x">취소</button><button class="btn gold" data-a="ok">${mode === 'online' ? '방 만들기' : '대국 시작'}</button></div>`;
     const el = modal(html);
-    $$('.opts', el).forEach(o => optGroup(o, o.id === 'oLevel' ? 2 : o.id === 'oSide' ? 0 : 'EHEH'));
+    $$('.opts', el).forEach(o => optGroup(o, o.id === 'oLevel' ? 2 : o.id === 'oSide' || o.id === 'oClock' ? 0 : 'EHEH'));
     const val = id => { const o = $('#' + id, el); return o ? o.dataset.val : null; };
     el.onclick = e => {
       const a = (e.target.closest('[data-a]') || {dataset: {}}).dataset.a; if (!a) return;
       if (a === 'x') return closeModal();
-      const mySide = +(val('oSide') || 0), keys = Object.keys(E.FORMATIONS);
+      const mySide = +(val('oSide') || 0), keys = Object.keys(E.FORMATIONS), clock = +val('oClock');
       const rnd = keys[(Math.random() * 4) | 0];
-      if (mode === 'local') return startGame({ game, mode, mySide: 0, formations: [val('oF0') || 'EHEH', val('oF1') || 'EHEH'] });
+      if (mode === 'local') return startGame({ game, mode, mySide: 0, clock, formations: [val('oF0') || 'EHEH', val('oF1') || 'EHEH'] });
       const formations = []; formations[mySide] = val('oF0') || 'EHEH'; formations[1 - mySide] = rnd;
-      if (mode === 'ai') return startGame({ game, mode, mySide, level: +val('oLevel'), formations });
-      Net.hostRoom({ game, mySide, formation: formations[mySide] });
+      if (mode === 'ai') return startGame({ game, mode, mySide, clock, level: +val('oLevel'), formations });
+      Net.hostRoom({ game, mySide, clock, formation: formations[mySide] });
     };
   }
 
